@@ -1,0 +1,17 @@
+# local caches & temp (kept on D:)
+.tmp/
+.uv-cache/
+.uv-python/
+.npm-cache/
+
+# python
+backend/.venv/
+__pycache__/
+*.pyc
+backend/.env
+
+# node / next
+web/node_modules/
+web/.next/
+web/next-env.d.ts
+web/.env*.local

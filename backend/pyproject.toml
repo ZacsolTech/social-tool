@@ -1,0 +1,25 @@
+[project]
+name = "klypsy"
+version = "0.1.0"
+description = "Klypsy - fast, clean social video downloader (Phase 1)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.139",
+    "uvicorn[standard]>=0.32",
+    "httpx>=0.28",
+    "pydantic-settings>=2.6",
+    "yt-dlp[default,curl-cffi]>=2026.10.26",
+]
+
+[tool.uv]
+# Keep EVERYTHING on D: (C: drive is low on space).
+cache-dir = "../.uv-cache"
+python-preference = "only-system"   # reuse the installed Python, never download one
+link-mode = "copy"
+package = false
+
+[dependency-groups]
+dev = [
+    "playwright>=1.64.1",
+]

@@ -1,0 +1,2 @@
+# DMCA / takedown blocklist. One URL or video id per line (case-insensitive substring match).
+# Lines starting with # are ignored. Changes apply immediately, no restart needed.
