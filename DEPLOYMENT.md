@@ -100,7 +100,14 @@ git push -u origin main
 
 Data-centre IPs (Railway, AWS, etc.) are often blocked. Typical errors: *"Sign in to confirm you're not a bot"*, *"The platform is blocking our server"*, *"This post is private or needs a login"*.
 
-Add these to the **backend** variables, then redeploy:
+**Easiest fix for YouTube and Instagram: the fallback API.** Add these to the **backend** variables, then redeploy:
+
+- **`CF_RAPIDAPI_KEY`**: your key from RapidAPI, from the "Social Media Video Downloader" API (publisher `emmanueldavidyou`). It is the `x-rapidapi-key` value in that API's Code snippet tab.
+- **`CF_RAPIDAPI_HOST`**: `social-media-video-downloader.p.rapidapi.com`. This is the default, so this variable is optional.
+
+How it works (`backend/app/fallback.py`): yt-dlp still runs first, for free. If YouTube or Instagram blocks it (bot check, login wall, 403), the link is extracted through the API instead. After a block, that platform goes straight to the API for 10 minutes. Each link costs 1 API credit. Downloads, MP3, merging and resume all work the same way. Keep an eye on usage in the RapidAPI dashboard.
+
+Other options (no API cost, more upkeep):
 
 1. **`CF_COOKIES_TXT`**
    - Log in to YouTube (and/or Instagram) in a browser with a **throwaway account**. Never use your main account: it can get flagged.

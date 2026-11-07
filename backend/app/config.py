@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     cookies_file: Path | None = None         # optional Netscape cookies.txt
     # Same thing as text (paste the whole cookies.txt into a host variable such as Railway's).
     cookies_txt: str | None = None
+    # Fallback API for when YouTube / Instagram block the server's IP (see app/fallback.py).
+    # Empty key = no fallback. 1 credit per call, used only when yt-dlp fails.
+    rapidapi_key: str | None = None
+    rapidapi_host: str = "social-media-video-downloader.p.rapidapi.com"
     cors_origins: list[str] = ["http://localhost:3000"]
     # One URL (or URL fragment, e.g. a video id) per line. Used for DMCA takedowns.
     blocklist_file: Path = BACKEND_DIR / "blocklist.txt"

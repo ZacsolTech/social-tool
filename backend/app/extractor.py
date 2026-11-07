@@ -13,7 +13,8 @@ from typing import Any
 import yt_dlp
 from yt_dlp.utils import DownloadError, ExtractorError
 
-from .config import Settings
+from . import fallback
+from .config import Settings, get_settings
 from .platforms import Platform
 
 log = logging.getLogger("uvicorn.error")
@@ -90,6 +91,7 @@ class Resolved:
     lock: threading.Lock = field(default_factory=threading.Lock)
     active: int = 0               # downloads streaming right now (don't expire mid-download)
     vmux: dict = field(default_factory=dict)   # (item, option) -> planned virtual MP4 (or None)
+    source: str = "ytdlp"         # "ytdlp" or "api" (fallback.py): decides how expired URLs are refreshed
 
     def item(self, index: int) -> Item:
         if not 0 <= index < len(self.items):
@@ -133,6 +135,10 @@ def ydl_params(settings: Settings, **extra: Any) -> dict[str, Any]:
 # ---------------------------------------------------------------- errors
 
 _FRIENDLY = [
+    # YouTube's bot check on data-centre IPs (Railway etc.). Its text also says "sign in" and
+    # "cookies", so it must be matched before the "private" rule or users see a wrong reason.
+    (r"not a bot|confirm you.?re not|bot detection",
+     "YouTube is blocking our server right now. Please try again later."),
     (r"private|login required|log in|sign in|authenticat|cookies", "This post is private or needs a login. Only public posts can be downloaded."),
     (r"no video|There is no video", "This post has no video in it (it may be photos only)."),
     (r"not available in your country|geo.?restrict", "This video is blocked in the server's region."),
@@ -361,28 +367,64 @@ _NET_ERR = re.compile(
 )
 
 
+# yt-dlp errors that mean "the platform is blocking this server", not "this post is gone".
+# These switch to the fallback API (fallback.py).
+_BLOCKED_ERR = re.compile(
+    r"not a bot|sign in|log ?in|cookies|rate.?limit|429|403|blocked|private|"
+    r"empty media response|unable to extract|requested content is not available",
+    re.I,
+)
+_API_FIRST_SEC = 10 * 60
+_api_first_until: dict[str, float] = {}   # platform id -> monotonic time: skip yt-dlp until then
+
+
+def _api_fetch(url: str, platform: Platform, settings: Settings) -> dict[str, Any] | None:
+    try:
+        info = fallback.fetch(url, platform.id, settings)
+        log.info("resolved via fallback API: %s", url)
+        return info
+    except fallback.FallbackError as e:
+        log.warning("fallback API failed for %s: %s", url, e)
+        return None
+
+
+def _ytdlp_extract(ydl: Any, url: str) -> dict[str, Any]:
+    deadline = time.monotonic() + _NET_BUDGET
+    for attempt in range(_NET_RETRIES):
+        try:
+            return ydl.sanitize_info(ydl.extract_info(url, download=False))
+        except (DownloadError, ExtractorError) as exc:
+            # Connection resets / timeouts come in short bursts on some networks (seen with
+            # TikTok): retry a few times before giving up. Real errors (private, deleted) don't retry.
+            if attempt == _NET_RETRIES - 1 or not _NET_ERR.search(str(exc)) or time.monotonic() > deadline:
+                raise
+            log.info("resolve retry %d for %s: %s", attempt + 1, url, str(exc)[:120])
+            time.sleep(1.0)
+    raise AssertionError("unreachable")
+
+
 def resolve(url: str, platform: Platform, settings: Settings) -> Resolved:
     # YouTube "watch?v=…&list=…" links: just the video, not the whole playlist.
+    # The session is kept even when the API extracts: downloads are relayed through it.
     ydl = yt_dlp.YoutubeDL(ydl_params(settings, noplaylist=platform.id == "youtube"))
+    use_api = fallback.available(platform.id, settings)
+    info, source = None, "ytdlp"
     try:
-        info = None
-        deadline = time.monotonic() + _NET_BUDGET
-        for attempt in range(_NET_RETRIES):
+        # yt-dlp was blocked recently on this platform: go straight to the API (saves ~5 s per link).
+        if use_api and _api_first_until.get(platform.id, 0) > time.monotonic():
+            info = _api_fetch(url, platform, settings)
+            source = "api"
+        if info is None:
             try:
-                info = ydl.sanitize_info(ydl.extract_info(url, download=False))
-                break
+                info, source = _ytdlp_extract(ydl, url), "ytdlp"
             except (DownloadError, ExtractorError) as exc:
-                # Connection resets / timeouts come in short bursts on some networks (seen with
-                # TikTok): retry a few times before giving up. Real errors (private, deleted) don't retry.
-                if attempt == _NET_RETRIES - 1 or not _NET_ERR.search(str(exc)) or time.monotonic() > deadline:
-                    raise
-                log.info("resolve retry %d for %s: %s", attempt + 1, url, str(exc)[:120])
-                time.sleep(1.0)
-    except (DownloadError, ExtractorError) as exc:
-        ydl.close()
-        log.warning("resolve failed for %s: %s", url, exc)
-        raise ResolveError(friendly_error(exc)) from exc
-    except Exception:
+                log.warning("resolve failed for %s: %s", url, exc)
+                if use_api and source != "api" and _BLOCKED_ERR.search(str(exc)):
+                    _api_first_until[platform.id] = time.monotonic() + _API_FIRST_SEC
+                    info, source = _api_fetch(url, platform, settings), "api"
+                if info is None:
+                    raise ResolveError(friendly_error(exc)) from exc
+    except BaseException:
         ydl.close()
         raise
 
@@ -411,6 +453,7 @@ def resolve(url: str, platform: Platform, settings: Settings) -> Resolved:
         created=time.time(),
         http_headers=dict(first.get("http_headers") or {}),
         ydl=ydl,
+        source=source,
     )
 
 
@@ -419,7 +462,10 @@ def refresh_item(resolved: Resolved, index: int) -> None:
     item = resolved.item(index)
     page = item.info.get("webpage_url") or resolved.webpage_url
     with resolved.lock:
-        info = resolved.ydl.sanitize_info(resolved.ydl.extract_info(page, download=False))
+        if resolved.source == "api":
+            info = fallback.fetch(resolved.url, resolved.platform.id, get_settings())
+        else:
+            info = resolved.ydl.sanitize_info(resolved.ydl.extract_info(page, download=False))
     if info.get("_type") in ("playlist", "multi_video"):
         entries = [e for e in info.get("entries") or [] if e]
         info = entries[index] if index < len(entries) else entries[0]
