@@ -44,7 +44,9 @@ def _call(path: str, params: dict[str, str], settings: Settings) -> dict[str, An
     except httpx.HTTPError as e:
         raise FallbackError(f"API unreachable: {e}") from e
     if r.status_code != 200:
-        raise FallbackError(f"API HTTP {r.status_code}: {r.text[:200]}")
+        key = settings.rapidapi_key or ""
+        # Key fingerprint (never the key itself) so a wrong/old key is easy to spot in host logs.
+        raise FallbackError(f"API HTTP {r.status_code}: {r.text[:200]} (key ...{key[-4:]}, {len(key)} chars)")
     data = r.json()
     if data.get("error"):
         err = data["error"]

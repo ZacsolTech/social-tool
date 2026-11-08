@@ -46,6 +46,9 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     s = Settings()
+    if s.rapidapi_key:
+        # Host dashboards (Railway) keep quotes typed around a value; RapidAPI then answers 403.
+        s.rapidapi_key = s.rapidapi_key.strip().strip("\"'").strip() or None
     if s.cookies_txt and not s.cookies_file:
         # yt-dlp reads cookies from a file, so write the variable's contents to one.
         DATA_DIR.mkdir(parents=True, exist_ok=True)

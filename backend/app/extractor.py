@@ -139,6 +139,9 @@ _FRIENDLY = [
     # "cookies", so it must be matched before the "private" rule or users see a wrong reason.
     (r"not a bot|confirm you.?re not|bot detection",
      "YouTube is blocking our server right now. Please try again later."),
+    # Instagram's login wall for data-centre IPs ("redirected to the login page ... rate-limit").
+    (r"redirected to the login page|rate.?limit (reached|for accessing)|exceeded the rate.?limit",
+     "Instagram is limiting our server right now. Please try again in a few minutes."),
     (r"private|login required|log in|sign in|authenticat|cookies", "This post is private or needs a login. Only public posts can be downloaded."),
     (r"no video|There is no video", "This post has no video in it (it may be photos only)."),
     (r"not available in your country|geo.?restrict", "This video is blocked in the server's region."),
