@@ -1,4 +1,4 @@
-# Deploying Klypsy to Railway
+# Deploying Klyprima to Railway
 
 The project deploys as **two Railway services** from one GitHub repo:
 
@@ -19,7 +19,7 @@ Create an **empty private** repo on github.com (no README), then:
 cd "D:\Shehryar Bhai Work\video downloader"
 git init
 git add .
-git commit -m "Klypsy phase 1"
+git commit -m "Klyprima phase 1"
 git branch -M main
 git remote add origin https://github.com/<you>/<repo>.git
 git push -u origin main
@@ -86,13 +86,13 @@ git push -u origin main
 
 ---
 
-## Step 5: Custom domain (klypsy.com)
+## Step 5: Custom domain (klyprima.com)
 
-0. Register `klypsy.com` first (normal price, about $10–12/year, at any registrar such as Cloudflare Registrar, Namecheap or Porkbun). Also register `klypsy.ai` so nobody else can take it.
-1. `web` service → **Settings → Networking → Custom Domain** → enter `klypsy.com` (and `www.klypsy.com`).
+0. Register `klyprima.com` first (normal price, about $10–12/year, at any registrar such as Cloudflare Registrar, Namecheap or Porkbun). Also register `klyprima.ai` so nobody else can take it, and `clipprima.com` (the spelling people type when they hear the name) and forward it to `klyprima.com`.
+1. `web` service → **Settings → Networking → Custom Domain** → enter `klyprima.com` (and `www.klyprima.com`).
 2. Add the DNS records Railway shows at your domain registrar.
-3. Change `NEXT_PUBLIC_SITE_URL` to `https://klypsy.com` and redeploy `web`.
-4. Create the `support@klypsy.com` mailbox (e.g. Zoho Mail free plan or Google Workspace). The site already shows this address on the Contact, Privacy, Terms and DMCA pages.
+3. Change `NEXT_PUBLIC_SITE_URL` to `https://klyprima.com` and redeploy `web`.
+4. Create the `support@klyprima.com` mailbox (e.g. Zoho Mail free plan or Google Workspace). The site already shows this address on the Contact, Privacy, Terms and DMCA pages.
 
 ---
 
@@ -152,9 +152,9 @@ Other options (no API cost, more upkeep):
 
 ## Before launch checklist
 
-- [ ] `klypsy.com` bought and connected
-- [ ] `NEXT_PUBLIC_SITE_URL` set to `https://klypsy.com`
-- [ ] `support@klypsy.com` mailbox created and receiving mail
+- [ ] `klyprima.com` bought and connected
+- [ ] `NEXT_PUBLIC_SITE_URL` set to `https://klyprima.com`
+- [ ] `support@klyprima.com` mailbox created and receiving mail
 - [ ] YouTube, TikTok and Instagram tested from the Railway server (cookies/proxy added if needed)
 - [ ] Decide on YouTube before applying for AdSense (`CF_ENABLE_YOUTUBE=false`, or a separate domain; see proposal §6)
 - [ ] yt-dlp updated within the last week

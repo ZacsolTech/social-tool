@@ -1,4 +1,4 @@
-# Klypsy API (FastAPI + yt-dlp + FFmpeg) - built by Railway from the /backend folder.
+# Klyprima API (FastAPI + yt-dlp + FFmpeg) - built by Railway from the /backend folder.
 FROM python:3.14-slim
 
 # uv (same version as local dev) and Deno (yt-dlp's preferred JS runtime for YouTube challenges).

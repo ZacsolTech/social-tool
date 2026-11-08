@@ -1,6 +1,6 @@
 # Video Tools Website: Proposal & Feasibility Report
 
-> **Brand name:** Klypsy (klypsy.com) · Slogan: "Grab it. Clip it. Post it."
+> **Brand name:** Klyprima (klyprima.com) · Slogan: "Grab it. Clip it. Post it."
 > **One-line idea:** Paste a link or upload a video and get ready-to-post short clips with captions, resized for TikTok, Reels and Shorts, in one flow.
 
 ---
@@ -102,7 +102,7 @@ Competitors make users go to 3–4 different websites to do this. **We do it in 
 | **Product Hunt, Reddit, Indie Hackers** | Launch posts in r/NewTubers, r/podcasting, r/socialmedia | First 5–20k users |
 | **Creator partnerships** | Give free Pro accounts to small/mid creators in exchange for a mention | Trust + traffic |
 | **WhatsApp/Telegram bot** | Viral sharing inside groups | Strong in Pakistan, India, Indonesia |
-| **Embeddable "Made with Klypsy"** | Small watermark on free exports that links back | Built-in viral loop |
+| **Embeddable "Made with Klyprima"** | Small watermark on free exports that links back | Built-in viral loop |
 
 **Realistic traffic timeline (with consistent SEO work):**
 

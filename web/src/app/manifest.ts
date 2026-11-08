@@ -18,7 +18,7 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/pwa-icon/512", sizes: "512x512", type: "image/png" },
       { src: "/pwa-icon/maskable-512", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
-    // Android share sheet: "Share → Klypsy" opens /?url=…&text=… and the download starts by itself.
+    // Android share sheet: "Share → Klyprima" opens /?url=…&text=… and the download starts by itself.
     share_target: {
       action: "/",
       method: "GET",

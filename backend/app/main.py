@@ -1,4 +1,4 @@
-"""Klypsy API - Phase 1: social video downloader."""
+"""Klyprima API - Phase 1: social video downloader."""
 
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
     await app.state.http.aclose()
 
 
-app = FastAPI(title="Klypsy API", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="Klyprima API", version="0.2.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -123,7 +123,7 @@ def _error_page(message: str, rid: str | None, status: int) -> HTMLResponse:
     payload = json.dumps({"type": "cf-download-error", "rid": rid, "message": message})
     body = f"""<!doctype html><meta charset="utf-8"><title>Download problem</title>
 <body style="font-family:system-ui;padding:2rem;max-width:32rem;margin:auto">
-<h1 style="font-size:1.2rem">Download problem</h1><p>{html.escape(message)}</p><p><a href="/">Back to Klypsy</a></p>
+<h1 style="font-size:1.2rem">Download problem</h1><p>{html.escape(message)}</p><p><a href="/">Back to Klyprima</a></p>
 <script>try{{parent!==window&&parent.postMessage({payload},location.origin)}}catch(e){{}}</script>"""
     return HTMLResponse(body, status_code=status)
 

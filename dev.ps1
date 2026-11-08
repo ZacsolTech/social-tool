@@ -1,4 +1,4 @@
-# Starts the Klypsy backend (FastAPI :8000) and frontend (Next.js :3000) for development.
+# Starts the Klyprima backend (FastAPI :8000) and frontend (Next.js :3000) for development.
 # Every cache / temp folder points inside this project on D: so nothing is written to C:.
 $root = $PSScriptRoot
 $env:TEMP = "$root\.tmp"; $env:TMP = "$root\.tmp"

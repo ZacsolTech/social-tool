@@ -362,7 +362,7 @@ wheels = [
 ]
 
 [[package]]
-name = "klypsy"
+name = "klyprima"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

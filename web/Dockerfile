@@ -1,4 +1,4 @@
-# Klypsy website (Next.js) - built by Railway from the /web folder.
+# Klyprima website (Next.js) - built by Railway from the /web folder.
 FROM node:24-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
