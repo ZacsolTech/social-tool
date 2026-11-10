@@ -25,5 +25,6 @@ COPY blocklist.txt ./
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
 
-# "::" listens on IPv4 + IPv6 (Railway private networking). $PORT is set by Railway.
-CMD ["sh", "-c", "exec uvicorn app.main:app --host :: --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
+# "::" for Railway private networking. $PORT is set by Railway. asyncio binds "::" as IPv6-only,
+# so ffmpeg must reach this API at [::1] (127.0.0.1 is refused): see CF_INTERNAL_API / config.py.
+CMD ["sh", "-c", "export CF_INTERNAL_API=${CF_INTERNAL_API:-http://[::1]:${PORT:-8000}}; exec uvicorn app.main:app --host :: --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]

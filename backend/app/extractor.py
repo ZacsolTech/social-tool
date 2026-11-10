@@ -307,7 +307,7 @@ def build_options(info: dict[str, Any], max_bytes: int | None = None, platform_i
         else:
             ids = [f["format_id"], best_audio["format_id"]]
             vs, as_ = _size(f, duration), _size(best_audio, duration)
-            size = (vs or 0) + (as_ or 0) or None
+            size = vs + (as_ or 0) if vs else None   # unknown video size: show none, not just the audio's
             has_audio, ext = True, "mp4"
         if facebook and not _is_h264(f):
             transcode = "h264"   # re-encode to H.264 + AAC-LC: plays smoothly and in sync everywhere
