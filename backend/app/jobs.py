@@ -8,6 +8,7 @@ shows the conversion progress, and then downloads the finished file with its exa
 
 from __future__ import annotations
 
+import logging
 import re
 import secrets
 import subprocess
@@ -20,6 +21,7 @@ from .config import DATA_DIR, Settings
 from .extractor import Item, Option, Resolved
 from .stream import _ffmpeg_cmd, ffmpeg_slots
 
+log = logging.getLogger("uvicorn.error")
 JOBS_DIR = DATA_DIR / "jobs"
 _OUT_TIME = re.compile(rb"^out_time_us=(\d+)")
 
@@ -71,20 +73,42 @@ def start(r: Resolved, item: Item, opt: Option, settings: Settings) -> Job:
     tmp = path.with_suffix(path.suffix + ".part")
     cmd = _ffmpeg_cmd(r, item, opt, settings, dest=str(tmp), extra=["-progress", "pipe:1", "-nostats"])
     r.active += 1   # keep the link's session (cookies, relay) alive while ffmpeg reads from it
-    try:
-        job.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
-    except Exception:  # noqa: BLE001
-        r.active -= 1
-        slots.give()
-        job.state, job.error = "error", "Couldn't start the converter. Please try again."
-        return job
-    threading.Thread(target=_run, args=(r, job, tmp, slots), daemon=True).start()
+    threading.Thread(target=_run, args=(r, opt, job, cmd, tmp, slots), daemon=True).start()
     return job
 
 
-def _run(r: Resolved, job: Job, tmp: Path, slots) -> None:
-    proc = job.proc
-    assert proc is not None
+ATTEMPTS = 2   # platforms (YouTube on data-centre IPs) refuse requests in short bursts: retry once
+
+
+def _run(r: Resolved, opt: Option, job: Job, cmd: list[str], tmp: Path, slots) -> None:
+    try:
+        for attempt in range(ATTEMPTS):
+            for fid in opt.formats:
+                r.relay_errors.pop(fid, None)
+            job.progress = 0.0 if job.duration else None
+            detail = _convert(job, cmd, tmp)
+            if detail is None:
+                return
+            relay = next((r.relay_errors[f] for f in opt.formats if f in r.relay_errors), None)
+            log.warning("prepare %s/%s attempt %d failed: %s | relay: %s", r.platform.id, opt.id, attempt + 1, detail, relay)
+            if attempt + 1 < ATTEMPTS:
+                time.sleep(3)
+                continue
+            # The relay's reason ("platform refused...") is clearer than ffmpeg's "Input/output error".
+            job.error = relay or ("Couldn't prepare this file." + (f" ({detail[:160]})" if detail else ""))
+            job.state = "error"
+    finally:
+        r.active -= 1
+        slots.give()
+        job.proc = None
+
+
+def _convert(job: Job, cmd: list[str], tmp: Path) -> str | None:
+    """Run ffmpeg once. None on success (job is done), else the last line ffmpeg printed."""
+    try:
+        proc = job.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
+    except Exception as e:  # noqa: BLE001
+        return f"couldn't start ffmpeg: {e}"
     err: list[bytes] = []
 
     def drain() -> None:
@@ -92,26 +116,30 @@ def _run(r: Resolved, job: Job, tmp: Path, slots) -> None:
             err.append(line)
             del err[:-20]
 
-    threading.Thread(target=drain, daemon=True).start()
-    try:
-        for line in iter(proc.stdout.readline, b""):
-            m = _OUT_TIME.match(line)
-            if m and job.duration:
-                job.progress = min(0.99, int(m.group(1)) / 1e6 / job.duration)
-        code = proc.wait()
-        if code == 0 and tmp.exists() and tmp.stat().st_size > 0:
-            tmp.replace(job.path)
-            job.size = job.path.stat().st_size
-            job.state = "done"
-        else:
-            detail = b"".join(err).decode(errors="replace").strip().splitlines()
-            job.error = "Couldn't prepare this file." + (f" ({detail[-1][:160]})" if detail else "")
-            job.state = "error"
-            tmp.unlink(missing_ok=True)
-    finally:
-        r.active -= 1
-        slots.give()
-        job.proc = None
+    drainer = threading.Thread(target=drain, daemon=True)
+    drainer.start()
+    out_sec = 0.0
+    for line in iter(proc.stdout.readline, b""):
+        m = _OUT_TIME.match(line)
+        if m:
+            out_sec = max(out_sec, int(m.group(1)) / 1e6)
+            if job.duration:
+                job.progress = min(0.99, out_sec / job.duration)
+    code = proc.wait()
+    drainer.join(timeout=2)
+    # If the platform keeps refusing, ffmpeg gives up reconnecting and ends the file early
+    # *successfully*: never hand out a cut-off video.
+    if code == 0 and job.duration and out_sec < job.duration * 0.97 - 1:
+        tmp.unlink(missing_ok=True)
+        return f"file ended early ({out_sec:.0f}s of {job.duration:.0f}s)"
+    if code == 0 and tmp.exists() and tmp.stat().st_size > 0:
+        tmp.replace(job.path)
+        job.size = job.path.stat().st_size
+        job.state = "done"
+        return None
+    tmp.unlink(missing_ok=True)
+    lines = b"".join(err).decode(errors="replace").strip().splitlines()
+    return lines[-1] if lines else f"ffmpeg exited with code {code}"
 
 
 def prune(max_age: float) -> None:

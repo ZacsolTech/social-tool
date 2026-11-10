@@ -95,6 +95,7 @@ class Resolved:
     active: int = 0               # downloads streaming right now (don't expire mid-download)
     vmux: dict = field(default_factory=dict)   # (item, option) -> planned virtual MP4 (or None)
     source: str = "ytdlp"         # "ytdlp" or "api" (fallback.py): decides how expired URLs are refreshed
+    relay_errors: dict = field(default_factory=dict)   # format id -> last relay error (shown when ffmpeg fails)
 
     def item(self, index: int) -> Item:
         if not 0 <= index < len(self.items):

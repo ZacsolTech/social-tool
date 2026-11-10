@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import html
 import json
+import logging
 import time
 from collections import defaultdict, deque
 from collections.abc import AsyncIterator
@@ -25,6 +26,7 @@ from .extractor import Option, Resolved, ResolveError, resolve, safe_filename
 from . import jobs, vmux
 from .stream import RELAY_KEY, StreamError, _parse_range, open_ffmpeg, open_relay
 
+log = logging.getLogger("uvicorn.error")
 settings = get_settings()
 cache: dict[str, Resolved] = {}
 
@@ -393,5 +395,19 @@ async def raw(token: str, index: int, format_id: str, request: Request, key: str
     try:
         up = await open_relay(r, item, format_id, request.headers.get("range"))
     except StreamError as e:
+        # ffmpeg only reports "Input/output error"; keep the real reason for the job's error message.
+        r.relay_errors[format_id] = e.message
+        log.warning("relay %s/%s failed: %s (%s)", r.platform.id, format_id, e.message, e.__cause__)
         raise HTTPException(e.status, e.message) from e
-    return StreamingResponse(_tracked(r, up.body), status_code=up.status, headers=up.headers)
+
+    async def body() -> AsyncIterator[bytes]:
+        # YouTube can refuse a later chunk (403) after the stream started: record it for the
+        # job's error message and end the response quietly (ffmpeg sees a short read and fails/retries).
+        try:
+            async for chunk in up.body:
+                yield chunk
+        except StreamError as e:
+            r.relay_errors[format_id] = e.message
+            log.warning("relay %s/%s failed mid-stream: %s (%s)", r.platform.id, format_id, e.message, e.__cause__)
+
+    return StreamingResponse(_tracked(r, body()), status_code=up.status, headers=up.headers)

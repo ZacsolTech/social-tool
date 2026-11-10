@@ -237,7 +237,9 @@ def _input_args(resolved: Resolved, item: Item, format_id: str, settings: Settin
         if cookie:
             headers["Cookie"] = cookie
         return ["-headers", "".join(f"{k}: {v}\r\n" for k, v in headers.items()), "-i", f["url"]]
-    return ["-i", f"{settings.internal_api}/api/raw/{resolved.token}/{item.index}/{format_id}?key={RELAY_KEY}"]
+    # Reconnect if the relay's stream drops midway (it resumes with a Range request).
+    return ["-reconnect", "1", "-reconnect_on_network_error", "1", "-reconnect_delay_max", "4",
+            "-i", f"{settings.internal_api}/api/raw/{resolved.token}/{item.index}/{format_id}?key={RELAY_KEY}"]
 
 
 def _ffmpeg_cmd(resolved: Resolved, item: Item, opt: Option, settings: Settings, dest: str | None = None,
