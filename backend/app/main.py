@@ -22,7 +22,7 @@ from starlette.background import BackgroundTask
 from . import platforms
 from .config import get_settings
 from .extractor import Option, Resolved, ResolveError, resolve, safe_filename
-from . import vmux
+from . import jobs, vmux
 from .stream import RELAY_KEY, StreamError, _parse_range, open_ffmpeg, open_relay
 
 settings = get_settings()
@@ -33,6 +33,7 @@ async def _janitor() -> None:
     while True:
         await asyncio.sleep(60)
         _prune_cache()
+        await asyncio.to_thread(jobs.prune, settings.info_ttl_sec)
 
 
 @asynccontextmanager
@@ -252,6 +253,10 @@ async def download(token: str, index: int, option: str, request: Request, rid: s
             return StreamingResponse(resp.aiter_bytes(), media_type=ctype, headers=headers, background=BackgroundTask(resp.aclose))
 
         name = safe_filename(f"{r.platform.name} {title}", opt.label.lower().replace(" ", ""), opt.ext)
+        job = jobs.get(r, item, opt)
+        if job is not None and job.state == "done":
+            # Prepared by /api/prepare: exact size, resume and multi-connection support.
+            return _serve_file(request, job, name, opt, is_head)
         if opt.direct:
             up = await open_relay(r, item, opt.formats[0], request.headers.get("range"))
         elif len(opt.formats) == 2 and opt.transcode is None:
@@ -311,6 +316,71 @@ def _serve_virtual(request: Request, r: Resolved, item, vm: vmux.VirtualMp4, nam
         return Response(status_code=status, media_type="video/mp4", headers=headers)
     body = vmux.stream_range(r, item, vm, start, end)
     return StreamingResponse(_tracked(r, body), status_code=status, media_type="video/mp4", headers=headers)
+
+
+_CTYPE = {"mp4": "video/mp4", "m4a": "audio/mp4", "mp3": "audio/mpeg", "webm": "video/webm"}
+
+
+def _serve_file(request: Request, job: jobs.Job, name: str, opt: Option, is_head: bool) -> Response:
+    total = job.size or job.path.stat().st_size
+    rng = _parse_range(request.headers.get("range"))
+    start, end, status = 0, total - 1, 200
+    if rng:
+        start = rng[0]
+        end = min(rng[1], total - 1) if rng[1] is not None else total - 1
+        if start >= total or start > end:
+            return Response(status_code=416, headers={"Content-Range": f"bytes */{total}"})
+        status = 206
+    headers = {
+        "Content-Disposition": _disposition(name),
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(end - start + 1),
+        "Cache-Control": "no-store",
+    }
+    if status == 206:
+        headers["Content-Range"] = f"bytes {start}-{end}/{total}"
+    ctype = _CTYPE.get(opt.ext, "application/octet-stream")
+    if is_head:
+        return Response(status_code=status, media_type=ctype, headers=headers)
+
+    async def body() -> AsyncIterator[bytes]:
+        job.serving += 1
+        try:
+            with job.path.open("rb") as f:
+                f.seek(start)
+                left = end - start + 1
+                while left > 0:
+                    chunk = await asyncio.to_thread(f.read, min(256 * 1024, left))
+                    if not chunk:
+                        break
+                    left -= len(chunk)
+                    yield chunk
+        finally:
+            job.serving -= 1
+
+    return StreamingResponse(body(), status_code=status, media_type=ctype, headers=headers)
+
+
+@app.api_route("/api/prepare/{token}/{index}/{option}", methods=["GET", "POST"])
+async def prepare(token: str, index: int, option: str, request: Request) -> dict[str, Any]:
+    """POST starts converting an option to a file on the server (idempotent); GET reports progress.
+    When state == "done", the normal download URL serves the file with its exact size."""
+    try:
+        r = _get_resolved(token)
+        item = r.item(index)
+    except ResolveError as e:
+        raise HTTPException(e.status, e.message) from e
+    opt = next((o for o in item.options if o.id == option), None)
+    if opt is None or opt.transcode is None:
+        raise HTTPException(404, "That quality option is not available.")
+    if request.method == "GET":
+        job = jobs.get(r, item, opt)
+        if job is None:
+            raise HTTPException(404, "Not started.")
+        return job.public()
+    if jobs.get(r, item, opt) is None:
+        rate_limit(request, "download", settings.jobs_rate_per_min * 4)
+    return jobs.start(r, item, opt, settings).public()
 
 
 @app.get("/api/raw/{token}/{index}/{format_id}")

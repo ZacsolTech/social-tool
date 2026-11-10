@@ -240,14 +240,18 @@ def _input_args(resolved: Resolved, item: Item, format_id: str, settings: Settin
     return ["-i", f"{settings.internal_api}/api/raw/{resolved.token}/{item.index}/{format_id}?key={RELAY_KEY}"]
 
 
-def _ffmpeg_cmd(resolved: Resolved, item: Item, opt: Option, settings: Settings) -> list[str]:
-    cmd = [_ffmpeg_bin(settings), "-hide_banner", "-loglevel", "error", "-nostdin"]
+def _ffmpeg_cmd(resolved: Resolved, item: Item, opt: Option, settings: Settings, dest: str | None = None,
+                extra: list[str] | None = None) -> list[str]:
+    """dest=None streams to stdout; a path writes a finished file (jobs.py: exact size, resumable)."""
+    cmd = [_ffmpeg_bin(settings), "-hide_banner", "-loglevel", "error", "-nostdin", *(extra or [])]
     for fid in opt.formats:
         cmd += _input_args(resolved, item, fid, settings)
     if opt.transcode == "mp3":
-        return cmd + ["-vn", "-c:a", "libmp3lame", "-b:a", "192k", "-f", "mp3", "pipe:1"]
-    # Fragmented MP4 can be written to a pipe and plays fine once saved.
-    out = ["-movflags", "frag_keyframe+empty_moov+default_base_moof", "-f", "mp4", "pipe:1"]
+        return cmd + ["-vn", "-c:a", "libmp3lame", "-b:a", "192k", "-f", "mp3", dest or "pipe:1"]
+    if dest:   # a regular MP4 with the index up front: plays everywhere, even before it's fully saved
+        out = ["-movflags", "+faststart", "-f", "mp4", "-y", dest]
+    else:      # fragmented MP4 can be written to a pipe and plays fine once saved
+        out = ["-movflags", "frag_keyframe+empty_moov+default_base_moof", "-f", "mp4", "pipe:1"]
     if opt.transcode == "h264":
         # Facebook VP9/AV1 -> H.264 + AAC-LC: smooth, in-sync playback on every phone, PC and editor.
         cmd += ["-map", "0:v:0", "-map", "1:a:0"] if len(opt.formats) == 2 else ["-map", "0:v:0", "-map", "0:a:0?"]
@@ -258,11 +262,16 @@ def _ffmpeg_cmd(resolved: Resolved, item: Item, opt: Option, settings: Settings)
     return cmd + ["-c", "copy", *out]
 
 
-async def open_ffmpeg(resolved: Resolved, item: Item, opt: Option, settings: Settings) -> Upstream:
+def ffmpeg_slots(settings: Settings) -> _Slots:
+    """One shared cap for streamed (open_ffmpeg) and file (jobs.py) conversions."""
     global _slots
     if _slots is None:
         _slots = _Slots(settings.max_concurrent_jobs * 2)
-    slots = _slots
+    return _slots
+
+
+async def open_ffmpeg(resolved: Resolved, item: Item, opt: Option, settings: Settings) -> Upstream:
+    slots = ffmpeg_slots(settings)
     if not slots.take():
         raise StreamError("The server is busy right now. Please try again in a minute.", 503)
     try:

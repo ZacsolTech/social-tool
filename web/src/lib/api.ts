@@ -10,7 +10,24 @@ export type Option = {
   best: boolean;
   /** false = MP3 conversion: the first bytes take a few seconds */
   instant: boolean;
+  /** true = converted on the server first (prepareDownload), then downloaded with its exact size */
+  prepare?: boolean;
 };
+
+export type PrepareStatus = {
+  state: "running" | "done" | "error";
+  progress: number | null;
+  size: number | null;
+  error: string | null;
+};
+
+/** Start (POST) or check (GET) the server-side conversion of one option. */
+export async function prepareDownload(href: string, method: "POST" | "GET"): Promise<PrepareStatus> {
+  const res = await fetch(href.replace("/api/download/", "/api/prepare/"), { method, cache: "no-store" }).catch(() => {
+    throw new ApiError("Can't reach the server. Check your connection and try again.");
+  });
+  return asJson<PrepareStatus>(res);
+}
 
 export type Item = {
   index: number;

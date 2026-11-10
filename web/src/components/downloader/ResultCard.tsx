@@ -227,14 +227,17 @@ function OptionButton({
   onStart: (o: Option) => void;
 }) {
   const waiting = waitLeft > 0 && !s;
-  const starting = s?.state === "starting";
+  const preparing = s?.state === "preparing";
+  const pct = preparing && s?.progress != null ? Math.round(s.progress * 100) : null;
+  const starting = s?.state === "starting" || preparing;
   const started = s?.state === "started";
   const failed = s?.state === "error";
   const highlight = o.best && !s;
 
   let sub: string = [formatBytes(o.size) && `~${formatBytes(o.size)}`, o.note].filter(Boolean).join(" · ") || o.ext.toUpperCase();
   if (waiting) sub = `Ready in ${waitLeft}s…`;
-  else if (starting) sub = o.instant ? "Starting download…" : "Converting, starts in a moment…";
+  else if (preparing) sub = pct != null ? `Converting… ${pct}%` : "Converting…";
+  else if (starting) sub = o.instant || o.prepare ? "Starting download…" : "Converting, starts in a moment…";
   else if (started) sub = "Started · tap to download again";
   else if (failed) sub = s?.error ?? "Failed · tap to retry";
 
@@ -258,6 +261,13 @@ function OptionButton({
       )}
     >
       {starting && <span aria-hidden className="shimmer absolute inset-0 opacity-40" />}
+      {pct != null && (
+        <span
+          aria-hidden
+          className={clsx("absolute inset-y-0 left-0 transition-[width] duration-700 ease-out", highlight ? "bg-white/15" : "bg-accent/10")}
+          style={{ width: `${pct}%` }}
+        />
+      )}
       <span className="relative min-w-0">
         <span className="flex items-center gap-1.5 font-semibold">
           {o.label}

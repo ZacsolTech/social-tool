@@ -56,6 +56,8 @@ class Option:
             "has_audio": self.has_audio, "best": self.best,
             # MP3 / ffmpeg fallbacks take a few seconds before bytes flow; the UI says so.
             "instant": self.kind == "image" or self.direct or (len(self.formats) == 2 and self.transcode is None),
+            # Converted by ffmpeg: the page prepares the file first (POST /api/prepare), then downloads it.
+            "prepare": self.transcode is not None,
         }
 
 
