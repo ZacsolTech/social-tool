@@ -34,7 +34,8 @@ class Option:
     kind: str                     # "video" | "audio" | "image"
     ext: str                      # extension of the file the user receives
     formats: list[str]            # yt-dlp format ids to fetch (1 = single file, 2 = video+audio merge)
-    transcode: str | None = None  # "mp3" = convert audio, "remux" = pack an HLS/DASH stream into MP4
+    transcode: str | None = None  # "mp3" = convert audio, "remux" = pack an HLS/DASH stream into MP4,
+                                  # "h264" = re-encode video to H.264 + AAC (Facebook VP9/AV1)
     image_url: str | None = None  # for kind == "image"
     quality: int = 0              # short side in px (video) or kbps (audio)
     size: int | None = None       # bytes (estimate)
@@ -244,8 +245,15 @@ def _audio_score(f: dict[str, Any]) -> tuple:
     )
 
 
-def build_options(info: dict[str, Any], max_bytes: int | None = None) -> list[Option]:
+def _is_h264(f: dict[str, Any]) -> bool:
+    return str(f.get("vcodec") or "").startswith(("avc", "h264"))
+
+
+def build_options(info: dict[str, Any], max_bytes: int | None = None, platform_id: str | None = None) -> list[Option]:
     duration = info.get("duration")
+    # Facebook serves VP9/AV1 video (stutters and drifts out of sync in many players) and its
+    # plain "hd"/"sd" files often have no audio track despite giving no codec info.
+    facebook = platform_id == "facebook"
     formats = [f for f in (info.get("formats") or [info]) if _usable(f)]
 
     clean = [f for f in formats if not _is_watermarked(f)]
@@ -284,6 +292,8 @@ def build_options(info: dict[str, Any], max_bytes: int | None = None) -> list[Op
     for label, b in buckets.items():
         f = b["f"]
         muxed = _has_audio(f)
+        if facebook and best_audio is not None and f.get("acodec") is None:
+            muxed = False   # unknown audio: add the DASH audio track rather than risk a silent file
         transcode = None
         if muxed or best_audio is None:
             ids = [f["format_id"]]
@@ -299,6 +309,8 @@ def build_options(info: dict[str, Any], max_bytes: int | None = None) -> list[Op
             vs, as_ = _size(f, duration), _size(best_audio, duration)
             size = (vs or 0) + (as_ or 0) or None
             has_audio, ext = True, "mp4"
+        if facebook and not _is_h264(f):
+            transcode = "h264"   # re-encode to H.264 + AAC-LC: plays smoothly and in sync everywhere
         if max_bytes and size and size > max_bytes:
             continue  # e.g. YouTube 4K: over the server file-size limit
         options.append(Option(
@@ -342,7 +354,7 @@ def build_options(info: dict[str, Any], max_bytes: int | None = None) -> list[Op
 # ---------------------------------------------------------------- resolve
 
 
-def _make_item(i: int, e: dict[str, Any], settings: Settings) -> Item:
+def _make_item(i: int, e: dict[str, Any], settings: Settings, platform_id: str | None = None) -> Item:
     item = Item(
         index=i,
         title=e.get("title") or e.get("description") or f"Video {i + 1}",
@@ -355,7 +367,7 @@ def _make_item(i: int, e: dict[str, Any], settings: Settings) -> Item:
     if item.duration and item.duration > settings.max_duration_sec:
         item.error = f"Too long (max {settings.max_duration_sec // 60} min)."
     else:
-        item.options = build_options(e, settings.max_filesize_mb * 1024 * 1024)
+        item.options = build_options(e, settings.max_filesize_mb * 1024 * 1024, platform_id)
         if not item.options:
             item.error = "No downloadable formats found."
     return item
@@ -452,7 +464,7 @@ def resolve(url: str, platform: Platform, settings: Settings) -> Resolved:
         title=info.get("title") or first.get("title") or platform.name + " video",
         uploader=info.get("uploader") or info.get("channel") or first.get("uploader"),
         webpage_url=info.get("webpage_url") or url,
-        items=[_make_item(i, e, settings) for i, e in enumerate(entries)],
+        items=[_make_item(i, e, settings, platform.id) for i, e in enumerate(entries)],
         created=time.time(),
         http_headers=dict(first.get("http_headers") or {}),
         ydl=ydl,

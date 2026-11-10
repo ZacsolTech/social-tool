@@ -246,9 +246,16 @@ def _ffmpeg_cmd(resolved: Resolved, item: Item, opt: Option, settings: Settings)
         cmd += _input_args(resolved, item, fid, settings)
     if opt.transcode == "mp3":
         return cmd + ["-vn", "-c:a", "libmp3lame", "-b:a", "192k", "-f", "mp3", "pipe:1"]
-    cmd += ["-map", "0:v:0", "-map", "1:a:0"] if len(opt.formats) == 2 else ["-map", "0"]
     # Fragmented MP4 can be written to a pipe and plays fine once saved.
-    return cmd + ["-c", "copy", "-movflags", "frag_keyframe+empty_moov+default_base_moof", "-f", "mp4", "pipe:1"]
+    out = ["-movflags", "frag_keyframe+empty_moov+default_base_moof", "-f", "mp4", "pipe:1"]
+    if opt.transcode == "h264":
+        # Facebook VP9/AV1 -> H.264 + AAC-LC: smooth, in-sync playback on every phone, PC and editor.
+        cmd += ["-map", "0:v:0", "-map", "1:a:0"] if len(opt.formats) == 2 else ["-map", "0:v:0", "-map", "0:a:0?"]
+        # -bf 0: B-frames would shift the video ~2 frames after the audio (no edit list in a piped MP4).
+        return cmd + ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-bf", "0", "-pix_fmt", "yuv420p",
+                      "-c:a", "aac", "-b:a", "128k", "-ac", "2", *out]
+    cmd += ["-map", "0:v:0", "-map", "1:a:0"] if len(opt.formats) == 2 else ["-map", "0"]
+    return cmd + ["-c", "copy", *out]
 
 
 async def open_ffmpeg(resolved: Resolved, item: Item, opt: Option, settings: Settings) -> Upstream:
