@@ -34,7 +34,7 @@ class Option:
     kind: str                     # "video" | "audio" | "image"
     ext: str                      # extension of the file the user receives
     formats: list[str]            # yt-dlp format ids to fetch (1 = single file, 2 = video+audio merge)
-    transcode: str | None = None  # "mp3" = convert audio, "remux" = pack an HLS/DASH stream into MP4,
+    transcode: str | None = None  # "mp3" = convert audio, "remux" = merge / pack streams into a regular MP4 (copy),
                                   # "h264" = re-encode video to H.264 + AAC (Facebook VP9/AV1)
     image_url: str | None = None  # for kind == "image"
     quality: int = 0              # short side in px (video) or kbps (audio)
@@ -310,7 +310,10 @@ def build_options(info: dict[str, Any], max_bytes: int | None = None, platform_i
             ids = [f["format_id"], best_audio["format_id"]]
             vs, as_ = _size(f, duration), _size(best_audio, duration)
             size = vs + (as_ or 0) if vs else None   # unknown video size: show none, not just the audio's
-            has_audio, ext = True, "mp4"
+            # ffmpeg merges into a regular MP4 on the server (no re-encode). The instant virtual merge
+            # (vmux.py) makes a fragmented MP4, which Windows' players and many phones play with lag,
+            # A/V drift or no sound at all, even though the file is correct.
+            has_audio, ext, transcode = True, "mp4", "remux"
         if facebook and not _is_h264(f):
             transcode = "h264"   # re-encode to H.264 + AAC-LC: plays smoothly and in sync everywhere
         if max_bytes and size and size > max_bytes:
