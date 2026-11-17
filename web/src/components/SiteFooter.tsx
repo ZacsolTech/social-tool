@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { PLATFORMS } from "@/lib/platforms";
 import { SITE } from "@/lib/site";
+import { TOOL_PAGES } from "@/lib/tools";
 import { Logo } from "./Logo";
 
 export function SiteFooter() {
   return (
     <footer className="mt-24 border-t border-line">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="max-w-sm">
           <Logo />
           <p className="mt-3 text-sm text-muted">{SITE.tagline}</p>
@@ -22,6 +23,18 @@ export function SiteFooter() {
               <li key={p.id}>
                 <Link href={`/${p.slug}`} className="transition hover:text-fg">
                   {p.name} downloader
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold">Reframe tools</h2>
+          <ul className="mt-3 space-y-2 text-sm text-muted">
+            {TOOL_PAGES.map((t) => (
+              <li key={t.slug}>
+                <Link href={`/${t.slug}`} className="transition hover:text-fg">
+                  {t.nav}
                 </Link>
               </li>
             ))}
@@ -48,7 +61,7 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-line">
         <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-subtle sm:px-6">
-          © {SITE.year} {SITE.name}. Downloads stream straight to you. We never store your files.
+          © {SITE.year} {SITE.name}. Downloads stream straight to you. Reframe uploads are deleted automatically within 24 hours.
         </p>
       </div>
     </footer>

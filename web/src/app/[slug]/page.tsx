@@ -1,17 +1,28 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
+import { ToolLanding } from "@/components/reframe/ToolLanding";
 import { ComingSoon, FaqSection, Features, Hero, HowItWorks, PlatformStrip, Tips, faqJsonLd } from "@/components/sections";
 import { CONTENT } from "@/lib/content";
 import { PLATFORMS, bySlug } from "@/lib/platforms";
 import { SITE } from "@/lib/site";
+import { TOOL_PAGES, toolBySlug } from "@/lib/tools";
 
 export function generateStaticParams() {
-  return PLATFORMS.map((p) => ({ slug: p.slug }));
+  return [...PLATFORMS.map((p) => ({ slug: p.slug })), ...TOOL_PAGES.map((t) => ({ slug: t.slug }))];
 }
 
 export async function generateMetadata({ params }: PageProps<"/[slug]">): Promise<Metadata> {
   const { slug } = await params;
+  const tool = toolBySlug(slug);
+  if (tool) {
+    return {
+      title: { absolute: `${tool.title} | ${SITE.name}` },
+      description: tool.description,
+      alternates: { canonical: `/${tool.slug}` },
+      openGraph: { title: tool.title, description: tool.description, url: `/${tool.slug}` },
+    };
+  }
   const p = bySlug(slug);
   if (!p) return {};
   const c = CONTENT[p.id];
@@ -23,8 +34,11 @@ export async function generateMetadata({ params }: PageProps<"/[slug]">): Promis
   };
 }
 
-export default async function PlatformPage({ params }: PageProps<"/[slug]">) {
+export default async function SlugPage({ params }: PageProps<"/[slug]">) {
   const { slug } = await params;
+  const tool = toolBySlug(slug);
+  if (tool) return <ToolLanding page={tool} />;
+
   const p = bySlug(slug);
   if (!p) notFound();
   const c = CONTENT[p.id];

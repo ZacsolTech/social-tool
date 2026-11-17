@@ -1,10 +1,11 @@
-"""Klyprima API - Phase 1: social video downloader."""
+"""Klyprima API: social video downloader + Reframe (landscape -> portrait) tool."""
 
 from __future__ import annotations
 
 import asyncio
 import html
 import json
+import re
 import logging
 import time
 from collections import defaultdict, deque
@@ -24,6 +25,9 @@ from . import platforms
 from .config import get_settings
 from .extractor import Option, Resolved, ResolveError, resolve, safe_filename
 from . import jobs, vmux
+from .reframe import api as reframe_api
+from .reframe import jobs as reframe_jobs
+from .reframe import uploads as reframe_uploads
 from .stream import RELAY_KEY, StreamError, _parse_range, open_ffmpeg, open_relay
 
 log = logging.getLogger("uvicorn.error")
@@ -36,12 +40,25 @@ async def _janitor() -> None:
         await asyncio.sleep(60)
         _prune_cache()
         await asyncio.to_thread(jobs.prune, settings.info_ttl_sec)
+        await asyncio.to_thread(reframe_jobs.prune, settings.reframe_ttl_sec)
+        await asyncio.to_thread(reframe_uploads.prune, settings.reframe_ttl_sec)
+
+
+def _warm_models() -> None:
+    """Check the AI model files once at start-up (re-downloads a damaged one) so the first job doesn't wait."""
+    from .reframe import models
+    for key in models.MODELS:
+        try:
+            models.path(key)
+        except Exception as e:  # noqa: BLE001
+            log.error("reframe model %s unavailable: %s", key, e)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.http = httpx.AsyncClient(follow_redirects=True, timeout=30)
     janitor = asyncio.create_task(_janitor())
+    asyncio.get_running_loop().run_in_executor(None, _warm_models)
     yield
     janitor.cancel()
     for r in cache.values():
@@ -49,13 +66,14 @@ async def lifespan(app: FastAPI):
     await app.state.http.aclose()
 
 
-app = FastAPI(title="Klyprima API", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="Klyprima API", version="0.3.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_methods=["GET", "POST", "HEAD"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "HEAD"],
     allow_headers=["*"],
 )
+app.include_router(reframe_api.router)
 
 
 # ---------------------------------------------------------------- helpers
@@ -92,6 +110,9 @@ def _get_resolved(token: str) -> Resolved:
     if not r or time.time() - r.created > settings.info_ttl_sec:
         raise HTTPException(410, "This link has expired. Please paste it again.")
     return r
+
+
+reframe_jobs.link_lookup = _get_resolved   # "Make it vertical" / paste a link in the Reframe tool
 
 
 def _is_blocked(url: str) -> bool:
@@ -143,7 +164,7 @@ class ResolveIn(BaseModel):
 
 @app.get("/api/health")
 async def health() -> dict[str, Any]:
-    return {"ok": True, "cached": len(cache)}
+    return {"ok": True, "cached": len(cache), "reframe_jobs": len(reframe_jobs._jobs), "reframe_waiting": len(reframe_jobs._waiting)}
 
 
 @app.get("/api/platforms")
@@ -159,6 +180,8 @@ async def resolve_link(body: ResolveIn, request: Request) -> dict[str, Any]:
         if platforms.detect(url, True) is not None:
             raise HTTPException(422, "YouTube downloads are turned off on this server.")
         raise HTTPException(422, "This site isn't supported. Try a YouTube, TikTok, Instagram, Facebook, X, Reddit or Pinterest link.")
+    if platform.id == "youtube" and re.search(r"youtube\.com/(playlist|@[^/]+/?$|channel/|c/|user/)", url, re.I):
+        raise HTTPException(422, "YouTube playlists and channels aren't supported. Open one video and copy its link.")
     rate_limit(request, "resolve", settings.resolve_rate_per_min)
     if _is_blocked(url):
         raise HTTPException(451, "This content can't be downloaded here because of a copyright request.")

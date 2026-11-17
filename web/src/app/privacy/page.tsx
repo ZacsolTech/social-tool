@@ -6,13 +6,19 @@ export const metadata: Metadata = { title: "Privacy Policy", description: `How $
 
 export default function Page() {
   return (
-    <LegalPage title="Privacy Policy" updated="November 5, 2026">
+    <LegalPage title="Privacy Policy" updated="November 17, 2026">
       <p>This policy explains what {SITE.name} collects when you use the site and what we do with it. The short version: as little as possible.</p>
       <h2>Links and files</h2>
       <p>
         When you paste a link, our server fetches the public post to list download options. If you choose a download, the file is
         streamed straight to your device. <strong>We never save the file on our servers</strong>. We don&apos;t keep copies, build
         galleries or index what you download.
+      </p>
+      <h2>Videos you upload (Reframe)</h2>
+      <p>
+        The Reframe tool needs your video on our server to convert it. Uploads and finished videos are stored privately, are never
+        shared, listed or used to train AI, and are <strong>deleted automatically within 24 hours</strong>. The AI that frames your video
+        (face, object, text and speech detection) runs on our own servers. Your video is not sent to any AI company.
       </p>
       <h2>Your recent links</h2>
       <p>The &quot;Recent&quot; list is stored only in your browser (local storage). It is never sent to us, and you can clear it anytime.</p>

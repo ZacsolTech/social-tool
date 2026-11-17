@@ -1,7 +1,7 @@
 [project]
 name = "klyprima"
-version = "0.1.0"
-description = "Klyprima - fast, clean social video downloader (Phase 1)"
+version = "0.3.0"
+description = "Klyprima - social video downloader and AI Reframe (landscape to portrait) tool"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -10,6 +10,9 @@ dependencies = [
     "httpx>=0.28",
     "pydantic-settings>=2.6",
     "yt-dlp[default,curl-cffi]>=2026.10.26",
+    "numpy>=2.3",
+    "opencv-contrib-python-headless>=5.0",   # YuNet faces, DB text detector, CSRT tracker
+    "onnxruntime>=1.22",                     # YOLOX objects + Silero speech detection
 ]
 
 [tool.uv]
@@ -22,4 +25,10 @@ package = false
 [dependency-groups]
 dev = [
     "playwright>=1.64.1",
+    "pytest>=8.4",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --basetemp=../.tmp/pytest"
+filterwarnings = ["ignore::DeprecationWarning"]

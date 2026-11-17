@@ -42,6 +42,20 @@ class Settings(BaseSettings):
     # One URL (or URL fragment, e.g. a video id) per line. Used for DMCA takedowns.
     blocklist_file: Path = BACKEND_DIR / "blocklist.txt"
 
+    # ---- Reframe tool (landscape -> portrait). See app/reframe/.
+    upload_max_mb: int = 1024                # biggest file a visitor can upload
+    upload_chunk_mb: int = 4                 # browser sends the file in pieces this size (under proxy body limits)
+    reframe_max_duration_sec: int = 30 * 60 # longest video the tool accepts
+    reframe_allow_links: bool = True         # "paste a link" / "Make it vertical" from the downloader
+    reframe_workers: int = 1                 # videos processed at the same time (CPU heavy: ~1 per 4 vCPU)
+    reframe_queue_max: int = 25              # waiting jobs before new ones are refused
+    reframe_daily_per_ip: int = 40           # new jobs per visitor per 24 h (re-renders don't count)
+    reframe_ttl_sec: int = 24 * 3600         # uploads and results are deleted after this long
+    reframe_min_free_gb: float = 2.0         # refuse new uploads below this much free disk
+    reframe_render_max_height: int = 1440    # source frames are decoded at most this tall (4K -> 1440p)
+    reframe_threads: int = 2                 # CPU threads for the AI models (ffmpeg uses its own)
+    models_dir: Path = BACKEND_DIR / "models"
+
 
 @lru_cache
 def get_settings() -> Settings:
