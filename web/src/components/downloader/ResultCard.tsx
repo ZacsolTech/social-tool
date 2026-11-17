@@ -18,9 +18,12 @@ import {
   Video,
   VolumeX,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { formatBytes, formatDuration, type Item, type Option, type Resolved } from "@/lib/api";
 import { byId } from "@/lib/platforms";
+import { HANDOFF_KEY, type LinkHandoff, writeSession } from "@/lib/reframe";
+import { REFRAME_SLUG } from "@/lib/tools";
 import { PlatformBadge } from "../PlatformBadge";
 import { dlKey, type DownloadStatus, useDownloads } from "./useDownloads";
 
@@ -125,7 +128,47 @@ export function ResultCard({ data, onReset }: { data: Resolved; onReset: () => v
         </div>
       </div>
 
+      {!item.error && item.options.some((o) => o.kind === "video") && <MakeVertical data={data} item={item} />}
       {anyStarted && <AfterDownload onReset={onReset} />}
+    </div>
+  );
+}
+
+/** Hand this post to the Reframe tool: the server re-uses the link it already resolved. */
+function MakeVertical({ data, item }: { data: Resolved; item: Item }) {
+  const router = useRouter();
+  const portrait = item.width && item.height ? item.height > item.width : false;
+  function go() {
+    const handoff: LinkHandoff = {
+      token: data.token,
+      index: item.index,
+      title: item.title || data.title,
+      thumbnail: item.thumbnail,
+      duration: item.duration,
+      width: item.width,
+      height: item.height,
+    };
+    writeSession(HANDOFF_KEY, handoff);
+    router.push(`/${REFRAME_SLUG}?from=link`);
+  }
+  return (
+    <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-accent/40 bg-accent-soft/40 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+      <div className="flex items-start gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent text-accent-fg">
+          <Crop className="size-4" />
+        </span>
+        <div className="text-sm">
+          <p className="font-medium">{portrait ? "Need 4:5 or square too?" : "Make it vertical for TikTok, Reels & Shorts"}</p>
+          <p className="text-muted">AI follows the speaker and picks a layout per shot. Free, no watermark.</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={go}
+        className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition hover:brightness-105"
+      >
+        <Sparkles className="size-4" /> Make it vertical
+      </button>
     </div>
   );
 }
@@ -312,10 +355,10 @@ function AfterDownload({ onReset }: { onReset: () => void }) {
             <Sparkles className="size-4" />
           </span>
           <div className="text-sm">
-            <p className="font-medium">Turn it into a Short next</p>
+            <p className="font-medium">Captions are next</p>
             <p className="text-muted">
               <Subtitles className="mr-1 inline size-3.5" />
-              Auto-captions and <Crop className="mx-1 inline size-3.5" />9:16 resize are coming soon.
+              Auto-captions with Urdu, Hindi and Arabic are coming soon.
             </p>
           </div>
         </div>

@@ -221,7 +221,7 @@ export const CONTENT: Record<PlatformId, PlatformContent> = {
     intro: "Save your own Twitch clips to repost as Shorts, Reels or TikToks. Clips and short VODs are supported.",
     howTo: ["Open the clip and copy its link.", "Paste it above.", "Choose a quality and download."],
     tips: [
-      { title: "Made for repurposing", body: "Clips download as MP4 ready for editing. 9:16 resize is coming soon." },
+      { title: "Made for repurposing", body: "Clips download as MP4 ready for editing, or tap Make it vertical for a 9:16 facecam + gameplay layout." },
       { title: "HD quality", body: "Get the clip in the best quality Twitch stores." },
       { title: "Fast", body: "Clips are short, so most are ready in a few seconds." },
     ],

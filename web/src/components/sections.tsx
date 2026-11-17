@@ -22,6 +22,7 @@ import Link from "next/link";
 import type { Faq } from "@/lib/content";
 import { PLATFORMS, type PlatformId } from "@/lib/platforms";
 import { SITE } from "@/lib/site";
+import { REFRAME_SLUG } from "@/lib/tools";
 import { Downloader } from "./downloader/Downloader";
 import { PlatformBadge } from "./PlatformBadge";
 
@@ -103,7 +104,7 @@ export function PlatformStrip({ current }: { current?: PlatformId }) {
 
 /* ------------------------------------------------------------ how it works */
 
-export function HowItWorks({ steps, platformName }: { steps?: string[]; platformName?: string }) {
+export function HowItWorks({ steps, platformName, title }: { steps?: string[]; platformName?: string; title?: string }) {
   const defaults = [
     "Copy the link of any public video from YouTube, TikTok, Instagram, Facebook, X and more.",
     "Paste it above, or press Ctrl+V anywhere. We detect the platform instantly.",
@@ -113,7 +114,10 @@ export function HowItWorks({ steps, platformName }: { steps?: string[]; platform
   const list = steps ?? defaults;
   return (
     <section className="mx-auto max-w-6xl px-4 pt-24 sm:px-6">
-      <SectionHeading eyebrow="How it works" title={platformName ? `Download ${platformName} videos in 3 steps` : "Three steps. About five seconds."} />
+      <SectionHeading
+        eyebrow="How it works"
+        title={title ?? (platformName ? `Download ${platformName} videos in 3 steps` : "Three steps. About five seconds.")}
+      />
       <ol className="mt-10 grid gap-4 md:grid-cols-3">
         {list.map((s, i) => {
           const Icon = icons[i] ?? Zap;
@@ -246,27 +250,48 @@ export function Comparison() {
 /* -------------------------------------------------------------- coming soon */
 
 export function ComingSoon() {
-  const tools = [
+  const tools: { icon: React.ComponentType<{ className?: string }>; name: string; body: string; href?: string }[] = [
+    {
+      icon: Crop,
+      name: `${SITE.name} Reframe`,
+      body: "Landscape to 9:16. AI follows the speaker, split screen, facecam layout and blur fill.",
+      href: `/${REFRAME_SLUG}`,
+    },
     { icon: Subtitles, name: `${SITE.name} Captions`, body: "Auto captions from an upload or a link, with Urdu, Hindi and Arabic support." },
-    { icon: Crop, name: `${SITE.name} Reframe`, body: "Landscape to 9:16. AI keeps the speaker centred for Shorts, Reels and TikTok." },
     { icon: Wand2, name: `${SITE.name} Shorts`, body: "Long video to Shorts. AI finds the best moments and cuts them into captioned clips." },
     { icon: Scissors, name: `${SITE.name} Split`, body: "Cut at exact times or split every N seconds, without losing quality." },
     { icon: Combine, name: `${SITE.name} Merge`, body: "Join up to 4 clips into one, auto-matched in size and frame rate." },
   ];
   return (
     <section id="tools" className="mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:px-6">
-      <SectionHeading eyebrow="Coming next" title="From link to ready-to-post Short, in one place." />
+      <SectionHeading eyebrow="Tools" title="From link to ready-to-post Short, in one place." />
       <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {tools.map((t) => (
-          <div key={t.name} className="relative rounded-3xl border border-dashed border-line-strong p-5">
-            <span className="absolute right-4 top-4 rounded-full bg-line px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
-              Soon
-            </span>
-            <t.icon className="size-6 text-accent" />
-            <h3 className="mt-4 font-semibold tracking-tight">{t.name}</h3>
-            <p className="mt-1 text-sm leading-relaxed text-muted">{t.body}</p>
-          </div>
-        ))}
+        {tools.map((t) =>
+          t.href ? (
+            <Link
+              key={t.name}
+              href={t.href}
+              className="group relative rounded-3xl border border-accent/50 bg-elev p-5 shadow-card transition hover:-translate-y-0.5 hover:border-accent"
+            >
+              <span className="absolute right-4 top-4 rounded-full bg-ok/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ok">
+                Live
+              </span>
+              <t.icon className="size-6 text-accent" />
+              <h3 className="mt-4 font-semibold tracking-tight">{t.name}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-muted">{t.body}</p>
+              <span className="mt-3 inline-block text-sm font-medium text-accent group-hover:underline">Try it free →</span>
+            </Link>
+          ) : (
+            <div key={t.name} className="relative rounded-3xl border border-dashed border-line-strong p-5">
+              <span className="absolute right-4 top-4 rounded-full bg-line px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                Soon
+              </span>
+              <t.icon className="size-6 text-accent" />
+              <h3 className="mt-4 font-semibold tracking-tight">{t.name}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-muted">{t.body}</p>
+            </div>
+          ),
+        )}
       </div>
     </section>
   );

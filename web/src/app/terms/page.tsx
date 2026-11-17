@@ -6,13 +6,19 @@ export const metadata: Metadata = { title: "Terms of Service", description: `The
 
 export default function Page() {
   return (
-    <LegalPage title="Terms of Service" updated="November 5, 2026">
+    <LegalPage title="Terms of Service" updated="November 17, 2026">
       <p>By using {SITE.name} you agree to these terms.</p>
       <h2>Use content you have the right to use</h2>
       <p>
         <strong>Only download or process content that you own or that you have permission to use.</strong> You are responsible for
         how you use any file you download, including following the terms of the platform it came from and the creator&apos;s
         rights.
+      </p>
+      <h2>Uploads and the Reframe tool</h2>
+      <p>
+        When you upload a video or convert a link with {SITE.name} Reframe, you confirm you have the right to edit and repost it. We
+        process it only to create your converted videos, keep the files only so you can download them, and delete them automatically
+        within 24 hours. Fair-use limits (file size, length and number of conversions per day) keep the service fast for everyone.
       </p>
       <h2>Acceptable use</h2>
       <ul>

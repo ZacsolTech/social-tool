@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { REFRAME_SLUG } from "@/lib/tools";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -8,7 +9,7 @@ const NAV = [
   { href: "/instagram-reels-downloader", label: "Instagram" },
   { href: "/facebook-video-downloader", label: "Facebook" },
   { href: "/twitter-video-downloader", label: "X" },
-  { href: "/#tools", label: "Tools" },
+  { href: `/${REFRAME_SLUG}`, label: "Reframe 9:16" },
 ];
 
 export function SiteHeader() {
@@ -24,6 +25,12 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-1">
+          <Link
+            href={`/${REFRAME_SLUG}`}
+            className="rounded-full bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition hover:brightness-95 md:hidden"
+          >
+            9:16 tool
+          </Link>
           <ThemeToggle />
           <Link
             href="/#faq"

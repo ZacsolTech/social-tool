@@ -86,6 +86,22 @@ git push -u origin main
 
 ---
 
+## Step 4b: Reframe tool (landscape → portrait)
+
+Nothing extra to install: the AI model files are inside the image (`backend/models/`) and the Docker build checks them. Things to know:
+
+| Topic | Detail |
+|---|---|
+| CPU | Converting is CPU work. Measured on a 12-thread PC: about **1.5× the video length** for Smart Reframe and **~3× faster than real time** for Blur Fill. Give the backend **at least 4 vCPU / 4 GB RAM** in Railway (Settings → Resources) and keep `CF_REFRAME_WORKERS=1` per 4 vCPU. Extra jobs wait in a queue with their position shown. |
+| Disk | Uploads and results live in `/.tmp` inside the container and are deleted after 24 h (`CF_REFRAME_TTL_SEC`). New uploads are refused when free space drops below `CF_REFRAME_MIN_FREE_GB` (2 GB). A redeploy wipes them, which is fine (people just convert again). |
+| Bandwidth | Uploads are free on Railway; every finished video downloaded counts as egress (~$0.05/GB). |
+| Limits | 1 GB per upload, 30 min per conversion, 40 conversions per visitor per day, 2 at a time. All in `backend/.env.example`. |
+| Links | "Paste a link" and the downloader's **Make it vertical** reuse the downloader (same proxy/cookies/RapidAPI fallback). Turn off with `CF_REFRAME_ALLOW_LINKS=false` (e.g. for the AdSense review). |
+
+Test after deploying: open `/landscape-to-portrait-video-converter`, upload a short video, convert with Smart Reframe, open the shot editor and apply one change.
+
+---
+
 ## Step 5: Custom domain (klyprima.com)
 
 0. Register `klyprima.com` first (normal price, about $10–12/year, at any registrar such as Cloudflare Registrar, Namecheap or Porkbun). Also register `klyprima.ai` so nobody else can take it, and `clipprima.com` (the spelling people type when they hear the name) and forward it to `klyprima.com`.
@@ -144,7 +160,7 @@ Other options (no API cost, more upkeep):
 | Bandwidth | About **$0.05 per GB** sent out. Every downloaded byte passes through the server. Example: 1,000 downloads/day × 30 MB ≈ 900 GB/month ≈ **$45/month** extra. |
 | Request length | Railway cuts any request at **15 minutes**. Video downloads can be resumed by the browser/IDM; MP3 can't. |
 | Idle cutoff | Requests that send nothing for **60 seconds** are cancelled. The app is already tuned to stay under this. |
-| Replicas | Keep **1** backend replica. |
+| Replicas | Keep **1** backend replica (links and Reframe jobs are kept in memory). |
 
 **Recommendation:** Railway is good for launch and testing. When traffic grows, move to a VPS (e.g. Hetzner, ~20 TB bandwidth included). The same Dockerfiles work there.
 

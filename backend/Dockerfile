@@ -1,4 +1,4 @@
-# Klyprima API (FastAPI + yt-dlp + FFmpeg) - built by Railway from the /backend folder.
+# Klyprima API (FastAPI + yt-dlp + FFmpeg + Reframe AI models) - built by Railway from the /backend folder.
 FROM python:3.14-slim
 
 # uv (same version as local dev) and Deno (yt-dlp's preferred JS runtime for YouTube challenges).
@@ -20,9 +20,12 @@ ENV UV_COMPILE_BYTECODE=1 \
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project && rm -rf /tmp/uv-cache
 COPY app ./app
+COPY models ./models
 COPY blocklist.txt ./
 
 ENV PATH="/app/.venv/bin:$PATH"
+# Fail the build (not the first visitor) if an AI model file is missing or damaged.
+RUN python -c "from app.reframe import models; [models.path(k) for k in models.MODELS]"
 EXPOSE 8000
 
 # "::" for Railway private networking. $PORT is set by Railway. asyncio binds "::" as IPv6-only,
