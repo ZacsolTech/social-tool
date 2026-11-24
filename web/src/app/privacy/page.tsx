@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Privacy Policy", description: `How $
 
 export default function Page() {
   return (
-    <LegalPage title="Privacy Policy" updated="November 17, 2026">
+    <LegalPage title="Privacy Policy" updated="November 24, 2026">
       <p>This policy explains what {SITE.name} collects when you use the site and what we do with it. The short version: as little as possible.</p>
       <h2>Links and files</h2>
       <p>
@@ -19,6 +19,18 @@ export default function Page() {
         The Reframe tool needs your video on our server to convert it. Uploads and finished videos are stored privately, are never
         shared, listed or used to train AI, and are <strong>deleted automatically within 24 hours</strong>. The AI that frames your video
         (face, object, text and speech detection) runs on our own servers. Your video is not sent to any AI company.
+      </p>
+      <h2>Videos you upload (Captions)</h2>
+      <p>
+        To write captions, the <strong>sound</strong> of your video is turned into text by speech recognition. Depending on our
+        setup this runs on our own servers or at our speech-to-text provider (Groq), which processes the audio only to return the
+        text. If you use AI translation, Roman Urdu, highlights or hook ideas, only the <strong>caption text</strong> (never the video
+        or audio) is sent to our AI provider (Anthropic). Our providers process this data to deliver the service to us and don&apos;t
+        use it to train their models. Your video, audio, captions and finished videos are stored privately and are
+        <strong> deleted automatically within 24 hours</strong>.
+      </p>
+      <p>
+        Styles you save with &quot;Save as my style&quot; and your last-used style are kept only in your browser (local storage).
       </p>
       <h2>Your recent links</h2>
       <p>The &quot;Recent&quot; list is stored only in your browser (local storage). It is never sent to us, and you can clear it anytime.</p>

@@ -3,7 +3,17 @@ public sample photo from the OpenCV repository, cached under .tmp/test-assets)."
 
 from __future__ import annotations
 
-import math
+import os
+
+os.environ.setdefault("CF_CAPTIONS_WARM_MODEL", "false")   # tests don't download the 480 MB speech model
+# Tests must not depend on (or spend) the keys in your backend/.env. KLY_LIVE_KEYS=1 keeps them for the
+# live tests in test_captions_live.py.
+if not os.environ.get("KLY_LIVE_KEYS"):
+    for _k in ("CF_GROQ_API_KEY", "GROQ_API_KEY", "CF_CLOUDFLARE_ACCOUNT_ID", "CF_CLOUDFLARE_API_TOKEN",
+               "CF_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY"):
+        os.environ[_k] = ""
+
+import math  # noqa: E402
 import subprocess
 import sys
 from collections.abc import Callable, Iterator

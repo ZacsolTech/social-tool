@@ -2,6 +2,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]   # .../backend (locally) or /app (in Docker)
@@ -10,7 +11,7 @@ DATA_DIR = PROJECT_ROOT / ".tmp"                     # D:\...\video downloader\.
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="CF_", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="CF_", extra="ignore", populate_by_name=True)
 
     # YouTube is ON. It is the main AdSense risk (see proposal §6): set CF_ENABLE_YOUTUBE=false
     # to turn it off. yt-dlp needs a JS runtime (deno or node) to solve YouTube challenges.
@@ -55,6 +56,41 @@ class Settings(BaseSettings):
     reframe_render_max_height: int = 1440    # source frames are decoded at most this tall (4K -> 1440p)
     reframe_threads: int = 2                 # CPU threads for the AI models (ffmpeg uses its own)
     models_dir: Path = BACKEND_DIR / "models"
+
+    # ---- Captions tool. See app/captions/.
+    # Speech to text: Groq's hosted Whisper when a key is set (fast, most accurate), else faster-whisper on
+    # this server's CPU. GROQ_API_KEY works too.
+    groq_api_key: str | None = Field(None, validation_alias=AliasChoices("CF_GROQ_API_KEY", "GROQ_API_KEY"))
+    groq_model: str = "whisper-large-v3-turbo"
+    # Low-resource languages lose accuracy in "turbo" (its decoder was cut down): use the full model for them.
+    groq_model_accurate: str = "whisper-large-v3"
+    groq_accurate_languages: list[str] = ["ur", "hi", "pa", "sd", "ps", "bn", "fa", "ne", "mr", "gu", "ta", "te"]
+    # After speech-to-text, a text AI fixes misheard words using the whole transcript (same word count, so the
+    # timings stay). Free with the Groq key.
+    captions_ai_proofread: bool = True
+    groq_translate_model: str = "whisper-large-v3"        # speech -> English translation
+    # Free text model on the same Groq key: AI translation / Roman Urdu / highlights when there's no Anthropic key.
+    groq_llm_model: str = "openai/gpt-oss-120b"
+    # Second free speech-to-text: Cloudflare Workers AI (same Whisper large-v3-turbo, free daily allowance).
+    # Token needs the "Workers AI" permission. CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN work too.
+    cloudflare_account_id: str | None = Field(None, validation_alias=AliasChoices("CF_CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_ACCOUNT_ID"))
+    cloudflare_api_token: str | None = Field(None, validation_alias=AliasChoices("CF_CLOUDFLARE_API_TOKEN", "CLOUDFLARE_API_TOKEN"))
+    cloudflare_whisper_model: str = "@cf/openai/whisper-large-v3-turbo"
+    local_whisper_model: str = "small"                     # tiny | base | small | medium (CPU)
+    local_whisper_fallback: bool = True                    # use the local model when Groq fails
+    captions_warm_model: bool = True                       # no Groq key: download/load the local model at start-up
+    whisper_dir: Path = BACKEND_DIR / "whisper-models"
+    # AI text features (translation, Roman Urdu polish, highlights, hook titles). ANTHROPIC_API_KEY works too.
+    anthropic_api_key: str | None = Field(None, validation_alias=AliasChoices("CF_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY"))
+    anthropic_model: str = "claude-opus-5-5"
+    captions_max_duration_sec: int = 60 * 60    # longest video the caption tool accepts
+    captions_daily_per_ip: int = 30             # new transcriptions per visitor per 24 h
+    captions_ai_daily_per_ip: int = 60          # AI text actions (translate, highlights...) per visitor per 24 h
+    captions_renders_per_hour: int = 40         # burned-in exports per visitor per hour
+    captions_workers: int = 2                   # jobs worked on at the same time
+    captions_queue_max: int = 40
+    captions_threads: int = 4                   # CPU threads for the local speech model
+    captions_watermark: str = "klyprima.com"    # text of the optional credit on exported videos
 
 
 @lru_cache

@@ -1,7 +1,9 @@
-# Klyprima: Social Video Downloader + Reframe (landscape → portrait)
+# Klyprima: Social Video Downloader + Reframe (landscape → portrait) + Captions
 
 1. **Downloader**: paste a YouTube / TikTok / Instagram / Facebook / X / Reddit / Pinterest / Dailymotion / Twitch link → get HD MP4 (no watermark), MP3, or the cover image.
 2. **Reframe**: upload a video or paste a link → get 9:16 / 4:5 / 1:1 versions. An AI "Auto Director" follows the speaker, switches between people, uses split screen, stacks a facecam over gameplay, and keeps slides whole. Or Blur Fill / Crop / Fit + Colour. Spec: `landscape-to-portrait-proposal.md`.
+
+3. **Captions**: upload a video or paste a link → AI captions with word-level timing in 40+ languages (Urdu in Nastaliq, Roman Urdu, Hindi, Hinglish, Arabic right-to-left) → edit, style (14 presets, 9 animations), add highlights, emojis, a hook title, a progress bar and a logo, translate or show two languages, cut "um"s and pauses → burned-in MP4, SRT, VTT, TXT. Spec: `video-tools-proposal.md` and the Caption Generator proposal doc.
 
 ## Stack (Nov 2026)
 
@@ -10,6 +12,7 @@
 | Frontend | **Next.js 16.4** (App Router, React 19.3, Turbopack, Cache Components / PPR), TypeScript, **Tailwind CSS v4**, lucide icons |
 | Backend | **FastAPI 0.162** (streaming responses), **yt-dlp 2026.10.26** + curl-cffi (browser impersonation), FFmpeg |
 | Reframe AI | **OpenCV 5** (YuNet faces, PP-OCR text detector, CSRT tracker), **onnxruntime** (YOLOX-nano objects, Silero speech). All CPU, all commercial-use licences, model files in `backend/models/` |
+| Captions | **Groq Whisper** + **Cloudflare Workers AI** free tiers (or **faster-whisper** on CPU), **Groq gpt-oss-120b** (free) or **Claude** (paid, optional) for translation / Roman Urdu / highlights, **libass** via FFmpeg, OFL fonts in `backend/fonts` |
 | Python env | **uv**, venv at `backend/.venv` |
 
 Everything (venv, uv cache, npm cache, yt-dlp cache, temp) lives inside this folder on D:.
@@ -57,15 +60,37 @@ API: `POST /api/uploads`, `PUT /api/uploads/{id}?offset=`, `POST /api/uploads/{i
 
 Pages: `/landscape-to-portrait-video-converter` plus 7 SEO landing pages with presets (`web/src/lib/tools.ts`). The downloader's result card has **Make it vertical**, which hands the resolved link to the tool.
 
+## Captions tool (`backend/app/captions/`, `web/src/components/captions/`)
+
+| Stage | File | What happens |
+|---|---|---|
+| Source | `api.py`, `jobs.py` | Upload (shared chunked uploads), a downloader link, or a Reframe result (carries the captions over: "Make it vertical" and back). Or import an SRT/VTT |
+| Speech to text | `stt.py` | 16 kHz mono MP3 → provider chain: **Groq** Whisper large-v3-turbo (free tier, `CF_GROQ_API_KEY`) → **Cloudflare Workers AI** (same model, free tier) → **faster-whisper** on the CPU. A provider whose free limit is used up is skipped until it resets. Per-language style prompts (keeps Urdu in Urdu script), VAD, multi-part language detection, hallucination filters |
+| Roman Urdu / Hinglish | `translit.py`, `llm.py` | Speech is transcribed as Hindi (Devanagari writes every vowel) and romanised word by word, keeping timings; Claude polishes the spelling when `CF_ANTHROPIC_API_KEY` is set |
+| Transcript | `transcript.py` | Words → editor lines → on-screen pages; SRT/VTT/TXT import and export |
+| AI extras | `llm.py`, `enhance.py` | Translation (25 languages), keyword + emoji picks, hook ideas via Claude (`CF_ANTHROPIC_API_KEY`, paid) or **Groq's free gpt-oss-120b** (same Groq key); with no key: Whisper's English translation and heuristics |
+| Styles | `styles.py`, `fonts.py` | 14 presets; 27 OFL fonts in `backend/fonts` (Nastaliq, Naskh, Devanagari, Bengali… CJK, Noto Emoji). Sizes are em sizes, converted per font for libass so the browser preview and the export match |
+| Render | `ass.py`, `render.py`, `cuts.py` | ASS script (pages, spoken-word highlight, karaoke, pop, one-word, reveal, bounce/slide/fade, keyword colours, emojis, dual-language line, hook, progress bar, credit) burned in with FFmpeg + libass; optional filler/silence cuts (frame-accurate select/aselect) and logo overlay |
+
+API: `GET /api/captions/config`, `GET /api/captions/fonts/{file}`, `POST /api/captions/jobs`, `GET /api/captions/jobs/{id}?since_rev=`, `PUT …/transcript`, `POST …/translate`, `POST …/romanize`, `POST …/enhance`, `POST …/render`, `PUT|DELETE …/logo`, `GET …/file/{video|srt|vtt|txt}?mode=original|translation|dual`, `GET …/source`, `DELETE …/{id}`.
+
+Pages: `/auto-caption-generator` plus 11 SEO landing pages (`web/src/lib/captionTools.ts`). The downloader's result card and Reframe's results have **Add captions**; the caption editor has **Make it vertical**.
+
+Re-download the fonts (only to add new ones): `uv run python scripts/fetch_fonts.py`.
+
 ## Tests
 
 ```powershell
 cd backend
-uv run pytest                      # 51 tests: director logic, real-video pipeline, full API (≈2 min)
+uv run pytest                      # ~130 tests: Reframe + Captions logic, real-video pipelines, full API (≈4 min)
+$env:KLY_LIVE_STT="1"; uv run pytest tests/test_captions_live.py   # real speech-to-text (Windows TTS speech, tiny model)
+# + CF_GROQ_API_KEY / CF_ANTHROPIC_API_KEY set: also tests the real Groq and Claude calls
 # Browser end-to-end (start backend + `npm run build; npm start` first):
 $env:KLY_E2E_URL="http://localhost:3000"; uv run pytest tests/e2e
 $env:KLY_E2E_LINK="https://www.youtube.com/watch?v=jNQXAC9IVRw"   # optional: downloader → Make it vertical
 ```
+
+Captions browser test (uses real local Whisper; start the backend with `CF_LOCAL_WHISPER_MODEL=tiny` for speed): `uv run pytest tests/e2e/test_captions_browser.py`. Web unit tests: `cd web; npm test` (caption paging/editing logic, Node's test runner).
 
 Test videos are generated on the fly; one public sample photo from the OpenCV repo is cached in `.tmp/test-assets`. pytest's temp folder is `.tmp/pytest` (D:). The browser tests use Playwright with the installed Edge if Playwright's own Chromium isn't downloaded.
 
@@ -98,7 +123,7 @@ Two services from this repo, both built from their Dockerfiles:
 
 | Service | Root directory | Variables | Public domain |
 |---|---|---|---|
-| `backend` | `/backend` | `PORT=8000`, optional `CF_PROXY`, `CF_COOKIES_TXT`, `CF_ENABLE_YOUTUBE`, `CF_REFRAME_*` (see `.env.example`) | No (private only) |
+| `backend` | `/backend` | `PORT=8000`, optional `CF_PROXY`, `CF_COOKIES_TXT`, `CF_ENABLE_YOUTUBE`, `CF_REFRAME_*`, `CF_GROQ_API_KEY` + `CF_ANTHROPIC_API_KEY` (Captions, recommended), `CF_CAPTIONS_*` (see `.env.example`) | No (private only) |
 | `web` | `/web` | `PORT=3000`, `API_ORIGIN=http://${{backend.RAILWAY_PRIVATE_DOMAIN}}:8000`, `NEXT_PUBLIC_SITE_URL=https://<your domain>` | Yes |
 
 Backend health check: `/api/health`. Keep 1 replica (link cache and Reframe jobs are in memory). Update yt-dlp regularly: `uv lock --upgrade-package yt-dlp`, commit, push.

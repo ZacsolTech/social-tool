@@ -45,6 +45,9 @@ git push -u origin main
    | `CF_ENABLE_YOUTUBE` | `true` / `false` | No (default `true`) |
    | `CF_COOKIES_TXT` | whole cookies.txt file (see Step 6) | Only if platforms block the server |
    | `CF_PROXY` | `http://user:pass@host:port` | Only if platforms block the server |
+   | `CF_GROQ_API_KEY` | Groq key, free tier (Captions speech-to-text + AI text, see Step 4c) | Strongly recommended |
+   | `CF_CLOUDFLARE_ACCOUNT_ID`, `CF_CLOUDFLARE_API_TOKEN` | Cloudflare Workers AI, free tier (backup speech-to-text) | Recommended |
+   | `CF_ANTHROPIC_API_KEY` | Anthropic key (paid; best AI text quality) | Later |
 
 4. Do **not** generate a public domain for this service.
 
@@ -99,6 +102,30 @@ Nothing extra to install: the AI model files are inside the image (`backend/mode
 | Links | "Paste a link" and the downloader's **Make it vertical** reuse the downloader (same proxy/cookies/RapidAPI fallback). Turn off with `CF_REFRAME_ALLOW_LINKS=false` (e.g. for the AdSense review). |
 
 Test after deploying: open `/landscape-to-portrait-video-converter`, upload a short video, convert with Smart Reframe, open the shot editor and apply one change.
+
+---
+
+## Step 4c: Captions tool (AI captions)
+
+It works with **no setup** (speech-to-text on the backend's own CPU), but that is slow and much less accurate. For accurate captions **at no cost**, add the free keys below to the **backend** variables. The app uses them in this order and moves to the next one automatically when a free daily limit is used up:
+
+| Order | Provider (free tier) | Variables | Free amount | What it does |
+|---|---|---|---|---|
+| 1 | **Groq** (Whisper large-v3-turbo + gpt-oss-120b). Sign up at console.groq.com → API Keys, no card | `CF_GROQ_API_KEY` | ~8 h of audio/day (2,000 requests); ~1,000 AI text requests/day | Accurate speech-to-text in seconds, plus AI translation (25 languages), Roman Urdu, highlights + emojis, hook ideas |
+| 2 | **Cloudflare Workers AI** (same Whisper model). Free account → Workers AI → "Use REST API" | `CF_CLOUDFLARE_ACCOUNT_ID`, `CF_CLOUDFLARE_API_TOKEN` (permission: Workers AI) | 10,000 neurons/day ≈ 3.5 h of audio | Backup speech-to-text when Groq's daily limit is reached |
+| 3 | Local faster-whisper ("small", in the Docker image) | none | unlimited, CPU-bound | Last resort; slower, weaker on Urdu/Hindi |
+| later | **Anthropic** (paid) | `CF_ANTHROPIC_API_KEY` | pay per use | Best-quality AI text features; used instead of Groq's text model when set |
+
+Free limits are set by the providers and change from time to time; check their dashboards. Together the two free tiers cover roughly 11 hours of audio a day (about 650 one-minute videos).
+
+| Topic | Detail |
+|---|---|
+| CPU / RAM | Burning captions in is FFmpeg work (about real-time or faster for 1080p). Without a Groq key, the local speech model also uses the CPU (~1 GB RAM for "small"). 4 vCPU / 4 GB as for Reframe is fine; raise `CF_CAPTIONS_WORKERS` with more CPU. |
+| Image size | The local model adds ~480 MB. If you use Groq, you can build without it: set the build variable `WHISPER_PRELOAD` to empty (Railway → Variables, available at build time); it's then downloaded only if ever needed. |
+| Limits | 60 min per video, 30 new caption projects per visitor per day, 60 AI actions per day, 40 exports per hour (all `CF_CAPTIONS_*` in `backend/.env.example`). |
+| Privacy | The privacy page already describes Groq (audio) and Anthropic (caption text). If you don't set those keys, nothing leaves your server. |
+
+Test after deploying: open `/auto-caption-generator`, upload a short talking video, press **Generate captions**, edit a word, pick a style, open **Boost → Auto-highlight**, then **Export video** and download the MP4 and SRT. Then try `/roman-urdu-caption-generator` with an Urdu clip.
 
 ---
 
@@ -174,6 +201,7 @@ Other options (no API cost, more upkeep):
 - [ ] YouTube, TikTok and Instagram tested from the Railway server (cookies/proxy added if needed)
 - [ ] Decide on YouTube before applying for AdSense (`CF_ENABLE_YOUTUBE=false`, or a separate domain; see proposal §6)
 - [ ] yt-dlp updated within the last week
+- [ ] Free `CF_GROQ_API_KEY` (and Cloudflare account ID + token) set on the backend (Captions), and one caption export tested on Railway
 
 ## Sources
 

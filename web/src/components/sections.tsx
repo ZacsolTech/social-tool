@@ -22,6 +22,7 @@ import Link from "next/link";
 import type { Faq } from "@/lib/content";
 import { PLATFORMS, type PlatformId } from "@/lib/platforms";
 import { SITE } from "@/lib/site";
+import { CAPTIONS_SLUG } from "@/lib/captionTools";
 import { REFRAME_SLUG } from "@/lib/tools";
 import { Downloader } from "./downloader/Downloader";
 import { PlatformBadge } from "./PlatformBadge";
@@ -257,7 +258,12 @@ export function ComingSoon() {
       body: "Landscape to 9:16. AI follows the speaker, split screen, facecam layout and blur fill.",
       href: `/${REFRAME_SLUG}`,
     },
-    { icon: Subtitles, name: `${SITE.name} Captions`, body: "Auto captions from an upload or a link, with Urdu, Hindi and Arabic support." },
+    {
+      icon: Subtitles,
+      name: `${SITE.name} Captions`,
+      body: "AI captions with word highlights, emojis and hook titles. Urdu, Roman Urdu, Hindi, Arabic and 40+ languages.",
+      href: `/${CAPTIONS_SLUG}`,
+    },
     { icon: Wand2, name: `${SITE.name} Shorts`, body: "Long video to Shorts. AI finds the best moments and cuts them into captioned clips." },
     { icon: Scissors, name: `${SITE.name} Split`, body: "Cut at exact times or split every N seconds, without losing quality." },
     { icon: Combine, name: `${SITE.name} Merge`, body: "Join up to 4 clips into one, auto-matched in size and frame rate." },

@@ -12,9 +12,10 @@ export default function Page() {
         video from a link onto your device. We do it <strong>without pop-ups, fake buttons or sign-ups</strong>.
       </p>
       <p>
-        Next we&apos;re adding the tools that turn a video into a ready-to-post Short: auto-captions (including Urdu, Hindi and
-        Arabic), 9:16 resizing that keeps the speaker in frame, splitting, combining, and AI that finds the best moments in long
-        videos.
+        Then we added the tools that turn a video into a ready-to-post Short: <strong>Reframe</strong>, which makes landscape
+        video vertical while keeping the speaker in frame, and <strong>Captions</strong>, AI captions with word highlights,
+        emojis and hook titles in Urdu (Nastaliq and Roman), Hindi, Arabic and 40+ languages. Next: splitting, combining, and
+        AI that finds the best moments in long videos.
       </p>
       <h2>Our principles</h2>
       <ul>

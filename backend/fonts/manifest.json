@@ -1,0 +1,302 @@
+{
+ "licence": "SIL Open Font License 1.1",
+ "fonts": [
+  {
+   "key": "montserrat",
+   "file": "montserrat.ttf",
+   "label": "Montserrat",
+   "kind": "display",
+   "scripts": [
+    "latin"
+   ],
+   "family": "Montserrat ExtraBold",
+   "source": "Google Fonts: Montserrat 800"
+  },
+  {
+   "key": "poppins",
+   "file": "poppins.ttf",
+   "label": "Poppins",
+   "kind": "display",
+   "scripts": [
+    "latin"
+   ],
+   "family": "Poppins",
+   "source": "Google Fonts: Poppins 700"
+  },
+  {
+   "key": "anton",
+   "file": "anton.ttf",
+   "label": "Anton",
+   "kind": "display",
+   "scripts": [
+    "latin"
+   ],
+   "family": "Anton",
+   "source": "Google Fonts: Anton 400"
+  },
+  {
+   "key": "bebas",
+   "file": "bebas.ttf",
+   "label": "Bebas Neue",
+   "kind": "display",
+   "scripts": [
+    "latin"
+   ],
+   "family": "Bebas Neue",
+   "source": "Google Fonts: Bebas Neue 400"
+  },
+  {
+   "key": "bangers",
+   "file": "bangers.ttf",
+   "label": "Bangers",
+   "kind": "display",
+   "scripts": [
+    "latin"
+   ],
+   "family": "Bangers",
+   "source": "Google Fonts: Bangers 400"
+  },
+  {
+   "key": "oswald",
+   "file": "oswald.ttf",
+   "label": "Oswald",
+   "kind": "display",
+   "scripts": [
+    "latin"
+   ],
+   "family": "Oswald",
+   "source": "Google Fonts: Oswald 700"
+  },
+  {
+   "key": "marker",
+   "file": "marker.ttf",
+   "label": "Marker",
+   "kind": "display",
+   "scripts": [
+    "latin"
+   ],
+   "family": "Permanent Marker",
+   "source": "Google Fonts: Permanent Marker 400"
+  },
+  {
+   "key": "lilita",
+   "file": "lilita.ttf",
+   "label": "Lilita One",
+   "kind": "display",
+   "scripts": [
+    "latin"
+   ],
+   "family": "Lilita One",
+   "source": "Google Fonts: Lilita One 400"
+  },
+  {
+   "key": "archivo",
+   "file": "archivo.ttf",
+   "label": "Archivo Black",
+   "kind": "display",
+   "scripts": [
+    "latin"
+   ],
+   "family": "Archivo Black",
+   "source": "Google Fonts: Archivo Black 400"
+  },
+  {
+   "key": "notosans",
+   "file": "notosans.ttf",
+   "label": "Noto Sans",
+   "kind": "display",
+   "scripts": [
+    "latin"
+   ],
+   "family": "Noto Sans",
+   "source": "Google Fonts: Noto Sans 700"
+  },
+  {
+   "key": "nastaliq",
+   "file": "nastaliq.ttf",
+   "label": "Nastaliq (Urdu)",
+   "kind": "script",
+   "scripts": [
+    "urdu"
+   ],
+   "family": "Noto Nastaliq Urdu",
+   "source": "Google Fonts: Noto Nastaliq Urdu 700"
+  },
+  {
+   "key": "naskh",
+   "file": "naskh.ttf",
+   "label": "Naskh (Arabic)",
+   "kind": "script",
+   "scripts": [
+    "arabic"
+   ],
+   "family": "Noto Naskh Arabic",
+   "source": "Google Fonts: Noto Naskh Arabic 700"
+  },
+  {
+   "key": "devanagari",
+   "file": "devanagari.ttf",
+   "label": "Devanagari",
+   "kind": "script",
+   "scripts": [
+    "devanagari"
+   ],
+   "family": "Noto Sans Devanagari",
+   "source": "Google Fonts: Noto Sans Devanagari 700"
+  },
+  {
+   "key": "bengali",
+   "file": "bengali.ttf",
+   "label": "Bengali",
+   "kind": "script",
+   "scripts": [
+    "bengali"
+   ],
+   "family": "Noto Sans Bengali",
+   "source": "Google Fonts: Noto Sans Bengali 700"
+  },
+  {
+   "key": "gurmukhi",
+   "file": "gurmukhi.ttf",
+   "label": "Gurmukhi",
+   "kind": "script",
+   "scripts": [
+    "gurmukhi"
+   ],
+   "family": "Noto Sans Gurmukhi",
+   "source": "Google Fonts: Noto Sans Gurmukhi 700"
+  },
+  {
+   "key": "gujarati",
+   "file": "gujarati.ttf",
+   "label": "Gujarati",
+   "kind": "script",
+   "scripts": [
+    "gujarati"
+   ],
+   "family": "Noto Sans Gujarati",
+   "source": "Google Fonts: Noto Sans Gujarati 700"
+  },
+  {
+   "key": "tamil",
+   "file": "tamil.ttf",
+   "label": "Tamil",
+   "kind": "script",
+   "scripts": [
+    "tamil"
+   ],
+   "family": "Noto Sans Tamil",
+   "source": "Google Fonts: Noto Sans Tamil 700"
+  },
+  {
+   "key": "telugu",
+   "file": "telugu.ttf",
+   "label": "Telugu",
+   "kind": "script",
+   "scripts": [
+    "telugu"
+   ],
+   "family": "Noto Sans Telugu",
+   "source": "Google Fonts: Noto Sans Telugu 700"
+  },
+  {
+   "key": "kannada",
+   "file": "kannada.ttf",
+   "label": "Kannada",
+   "kind": "script",
+   "scripts": [
+    "kannada"
+   ],
+   "family": "Noto Sans Kannada",
+   "source": "Google Fonts: Noto Sans Kannada 700"
+  },
+  {
+   "key": "malayalam",
+   "file": "malayalam.ttf",
+   "label": "Malayalam",
+   "kind": "script",
+   "scripts": [
+    "malayalam"
+   ],
+   "family": "Noto Sans Malayalam",
+   "source": "Google Fonts: Noto Sans Malayalam 700"
+  },
+  {
+   "key": "sinhala",
+   "file": "sinhala.ttf",
+   "label": "Sinhala",
+   "kind": "script",
+   "scripts": [
+    "sinhala"
+   ],
+   "family": "Noto Sans Sinhala",
+   "source": "Google Fonts: Noto Sans Sinhala 700"
+  },
+  {
+   "key": "thai",
+   "file": "thai.ttf",
+   "label": "Thai",
+   "kind": "script",
+   "scripts": [
+    "thai"
+   ],
+   "family": "Noto Sans Thai",
+   "source": "Google Fonts: Noto Sans Thai 700"
+  },
+  {
+   "key": "hebrew",
+   "file": "hebrew.ttf",
+   "label": "Hebrew",
+   "kind": "script",
+   "scripts": [
+    "hebrew"
+   ],
+   "family": "Noto Sans Hebrew",
+   "source": "Google Fonts: Noto Sans Hebrew 700"
+  },
+  {
+   "key": "korean",
+   "file": "korean.ttf",
+   "label": "Korean",
+   "kind": "script",
+   "scripts": [
+    "korean"
+   ],
+   "family": "Noto Sans KR",
+   "source": "Google Fonts: Noto Sans KR 700"
+  },
+  {
+   "key": "japanese",
+   "file": "japanese.ttf",
+   "label": "Japanese",
+   "kind": "script",
+   "scripts": [
+    "japanese"
+   ],
+   "family": "Noto Sans JP",
+   "source": "Google Fonts: Noto Sans JP 700"
+  },
+  {
+   "key": "chinese",
+   "file": "chinese.ttf",
+   "label": "Chinese",
+   "kind": "script",
+   "scripts": [
+    "cjk"
+   ],
+   "family": "Noto Sans SC",
+   "source": "Google Fonts: Noto Sans SC 700"
+  },
+  {
+   "key": "emoji",
+   "file": "emoji.ttf",
+   "label": "Emoji",
+   "kind": "script",
+   "scripts": [
+    "emoji"
+   ],
+   "family": "Noto Emoji",
+   "source": "Google Fonts: Noto Emoji 700"
+  }
+ ]
+}

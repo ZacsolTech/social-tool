@@ -21,6 +21,8 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { formatBytes, formatDuration, type Item, type Option, type Resolved } from "@/lib/api";
+import { CAPTIONS_HANDOFF_KEY, type CaptionsHandoff } from "@/lib/captions";
+import { CAPTIONS_SLUG } from "@/lib/captionTools";
 import { byId } from "@/lib/platforms";
 import { HANDOFF_KEY, type LinkHandoff, writeSession } from "@/lib/reframe";
 import { REFRAME_SLUG } from "@/lib/tools";
@@ -129,7 +131,7 @@ export function ResultCard({ data, onReset }: { data: Resolved; onReset: () => v
       </div>
 
       {!item.error && item.options.some((o) => o.kind === "video") && <MakeVertical data={data} item={item} />}
-      {anyStarted && <AfterDownload onReset={onReset} />}
+      {anyStarted && <AfterDownload onReset={onReset} data={data} item={item} />}
     </div>
   );
 }
@@ -339,7 +341,23 @@ function OptionButton({
   );
 }
 
-function AfterDownload({ onReset }: { onReset: () => void }) {
+function AfterDownload({ onReset, data, item }: { onReset: () => void; data: Resolved; item: Item }) {
+  const router = useRouter();
+  const hasVideo = !item.error && item.options.some((o) => o.kind === "video");
+  function captions() {
+    const handoff: CaptionsHandoff = {
+      kind: "link",
+      token: data.token,
+      index: item.index,
+      title: item.title || data.title,
+      thumbnail: item.thumbnail,
+      duration: item.duration,
+      width: item.width,
+      height: item.height,
+    };
+    writeSession(CAPTIONS_HANDOFF_KEY, handoff);
+    router.push(`/${CAPTIONS_SLUG}?from=link`);
+  }
   return (
     <div className="mt-4 space-y-3">
       <p className="flex items-start gap-2 rounded-xl bg-ok/10 px-3 py-2.5 text-sm text-fg">
@@ -355,20 +373,31 @@ function AfterDownload({ onReset }: { onReset: () => void }) {
             <Sparkles className="size-4" />
           </span>
           <div className="text-sm">
-            <p className="font-medium">Captions are next</p>
+            <p className="font-medium">Add captions to it</p>
             <p className="text-muted">
               <Subtitles className="mr-1 inline size-3.5" />
-              Auto-captions with Urdu, Hindi and Arabic are coming soon.
+              AI captions with highlights and emojis. Urdu, Roman Urdu, Hindi, Arabic & more.
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onReset}
-          className="inline-flex items-center justify-center gap-1.5 rounded-full bg-fg px-4 py-2 text-sm font-medium text-bg transition hover:opacity-90"
-        >
-          <Download className="size-4" /> Download another
-        </button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {hasVideo && (
+            <button
+              type="button"
+              onClick={captions}
+              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition hover:brightness-105"
+            >
+              <Subtitles className="size-4" /> Add captions
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onReset}
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-fg px-4 py-2 text-sm font-medium text-bg transition hover:opacity-90"
+          >
+            <Download className="size-4" /> Download another
+          </button>
+        </div>
       </div>
     </div>
   );

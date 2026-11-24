@@ -111,7 +111,8 @@ class Job:
             "position": self.position,
             "trim": [self.trim_start, self.trim_end],
             "title": self.title,
-            "source": {"type": self.source.get("type"), "url": f"{base}/source"},
+            "source": {"type": self.source.get("type"), "url": f"{base}/source",
+                       **({"captions": self.source.get("id")} if self.source.get("type") == "captions" else {})},
             "info": self.info.public() if self.info else None,
             "version": self.version,
             "outputs": [
@@ -241,13 +242,15 @@ def _phase(job: Job, lo: float, hi: float) -> Callable[[float], None]:
     return report
 
 
-def _import_link(job: Job) -> None:
+def fetch_link(token: str, index: int, dest_dir: Path, cancel: threading.Event,
+               report: Callable[[float], None]) -> tuple[Path, str | None]:
+    """Download a link pasted in the downloader (its cached token) into dest_dir. Shared with the caption tool.
+    Returns (file, title)."""
     if link_lookup is None:
         raise JobError("Links can't be used right now. Please upload the file instead.")
-    job.state, job.stage = "importing", "Fetching the video"
     try:
-        r = link_lookup(job.source["token"])
-        item = r.item(int(job.source.get("index", 0)))
+        r = link_lookup(token)
+        item = r.item(int(index))
     except Exception as e:  # noqa: BLE001
         raise JobError("This link has expired. Please paste it again.", 410) from e
     if item.error:
@@ -257,27 +260,39 @@ def _import_link(job: Job) -> None:
     if opt is None:
         raise JobError("This post has no video we can use.")
     s = get_settings()
-    report = _phase(job, 0.0, 0.15)
     dl = None
     for _ in range(30):
         dl = dl_jobs.start(r, item, opt, s)
         if dl.state != "error" or "busy" not in (dl.error or ""):
             break
-        if job.cancel.wait(4):
+        if cancel.wait(4):
             raise Cancelled()
     while dl is not None and dl.state == "running":
-        if job.cancel.wait(0.5):
+        if cancel.wait(0.5):
             raise Cancelled()
         report(dl.progress or 0.0)
     if dl is None or dl.state != "done":
         raise JobError((dl.error if dl else None) or "Couldn't fetch this video. Please try again.")
-    dest = job.dir / f"source.{opt.ext}"
+    dest = dest_dir / f"source.{opt.ext}"
+    link_or_copy(Path(dl.path), dest)
+    return dest, item.title or r.title
+
+
+def link_or_copy(src: Path, dest: Path) -> None:
+    """Hard link (instant, no extra disk) when possible, else copy."""
+    dest.unlink(missing_ok=True)
     try:
-        os.link(dl.path, dest)
+        os.link(src, dest)
     except OSError:
-        shutil.copyfile(dl.path, dest)
-    job.src_path = dest
-    job.title = item.title or r.title or job.title
+        shutil.copyfile(src, dest)
+
+
+def _import_link(job: Job) -> None:
+    job.state, job.stage = "importing", "Fetching the video"
+    path, title = fetch_link(job.source["token"], int(job.source.get("index", 0)), job.dir, job.cancel,
+                             _phase(job, 0.0, 0.15))
+    job.src_path = path
+    job.title = title or job.title
 
 
 def _release_upload(job: Job) -> None:
