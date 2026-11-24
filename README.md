@@ -12,7 +12,7 @@
 | Frontend | **Next.js 16.4** (App Router, React 19.3, Turbopack, Cache Components / PPR), TypeScript, **Tailwind CSS v4**, lucide icons |
 | Backend | **FastAPI 0.162** (streaming responses), **yt-dlp 2026.10.26** + curl-cffi (browser impersonation), FFmpeg |
 | Reframe AI | **OpenCV 5** (YuNet faces, PP-OCR text detector, CSRT tracker), **onnxruntime** (YOLOX-nano objects, Silero speech). All CPU, all commercial-use licences, model files in `backend/models/` |
-| Captions | **Groq Whisper** (or **faster-whisper** on CPU), **Claude** (`claude-opus-5-5`, optional) for translation / Roman Urdu / highlights, **libass** via FFmpeg, OFL fonts in `backend/fonts` |
+| Captions | **Groq Whisper** + **Cloudflare Workers AI** free tiers (or **faster-whisper** on CPU), **Groq gpt-oss-120b** (free) or **Claude** (paid, optional) for translation / Roman Urdu / highlights, **libass** via FFmpeg, OFL fonts in `backend/fonts` |
 | Python env | **uv**, venv at `backend/.venv` |
 
 Everything (venv, uv cache, npm cache, yt-dlp cache, temp) lives inside this folder on D:.
@@ -65,10 +65,10 @@ Pages: `/landscape-to-portrait-video-converter` plus 7 SEO landing pages with pr
 | Stage | File | What happens |
 |---|---|---|
 | Source | `api.py`, `jobs.py` | Upload (shared chunked uploads), a downloader link, or a Reframe result (carries the captions over: "Make it vertical" and back). Or import an SRT/VTT |
-| Speech to text | `stt.py` | 16 kHz mono MP3 → **Groq Whisper large-v3-turbo** (`CF_GROQ_API_KEY`) with word timings; **faster-whisper** on the CPU when there's no key or Groq fails. Hallucinated segments over silence/music are dropped |
+| Speech to text | `stt.py` | 16 kHz mono MP3 → provider chain: **Groq** Whisper large-v3-turbo (free tier, `CF_GROQ_API_KEY`) → **Cloudflare Workers AI** (same model, free tier) → **faster-whisper** on the CPU. A provider whose free limit is used up is skipped until it resets. Per-language style prompts (keeps Urdu in Urdu script), VAD, multi-part language detection, hallucination filters |
 | Roman Urdu / Hinglish | `translit.py`, `llm.py` | Speech is transcribed as Hindi (Devanagari writes every vowel) and romanised word by word, keeping timings; Claude polishes the spelling when `CF_ANTHROPIC_API_KEY` is set |
 | Transcript | `transcript.py` | Words → editor lines → on-screen pages; SRT/VTT/TXT import and export |
-| AI extras | `llm.py`, `enhance.py` | Translation (Claude: 25 languages; without a key Whisper's English translation aligned to lines), keyword + emoji picks, hook title ideas (heuristics without a key) |
+| AI extras | `llm.py`, `enhance.py` | Translation (25 languages), keyword + emoji picks, hook ideas via Claude (`CF_ANTHROPIC_API_KEY`, paid) or **Groq's free gpt-oss-120b** (same Groq key); with no key: Whisper's English translation and heuristics |
 | Styles | `styles.py`, `fonts.py` | 14 presets; 27 OFL fonts in `backend/fonts` (Nastaliq, Naskh, Devanagari, Bengali… CJK, Noto Emoji). Sizes are em sizes, converted per font for libass so the browser preview and the export match |
 | Render | `ass.py`, `render.py`, `cuts.py` | ASS script (pages, spoken-word highlight, karaoke, pop, one-word, reveal, bounce/slide/fade, keyword colours, emojis, dual-language line, hook, progress bar, credit) burned in with FFmpeg + libass; optional filler/silence cuts (frame-accurate select/aselect) and logo overlay |
 

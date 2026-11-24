@@ -112,7 +112,8 @@ def test_config_lists_languages_presets_fonts(client):
     assert codes[:3] == ["en", "ur", "ur-Latn"] and "hi-Latn" in codes and "ar" in codes
     assert len(cfg["presets"]) >= 12 and cfg["presets"][0]["style"]["font"]
     assert any(f["key"] == "nastaliq" for f in cfg["fonts"])
-    assert cfg["features"] == {"ai": False, "stt": stt.provider_name(), "translate_any": False}
+    f = cfg["features"]
+    assert f["ai"] is False and f["translate_any"] is False and f["stt"] == stt.provider_name() and f["ai_provider"] is None
     font = next(f for f in cfg["fonts"] if f["key"] == "montserrat")
     r = client.get(font["url"])
     assert r.status_code == 200 and r.content[:4] in (b"\x00\x01\x00\x00", b"OTTO", b"true")

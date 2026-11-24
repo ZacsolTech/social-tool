@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     groq_api_key: str | None = Field(None, validation_alias=AliasChoices("CF_GROQ_API_KEY", "GROQ_API_KEY"))
     groq_model: str = "whisper-large-v3-turbo"
     groq_translate_model: str = "whisper-large-v3"        # speech -> English translation
+    # Free text model on the same Groq key: AI translation / Roman Urdu / highlights when there's no Anthropic key.
+    groq_llm_model: str = "openai/gpt-oss-120b"
+    # Second free speech-to-text: Cloudflare Workers AI (same Whisper large-v3-turbo, free daily allowance).
+    # Token needs the "Workers AI" permission. CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN work too.
+    cloudflare_account_id: str | None = Field(None, validation_alias=AliasChoices("CF_CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_ACCOUNT_ID"))
+    cloudflare_api_token: str | None = Field(None, validation_alias=AliasChoices("CF_CLOUDFLARE_API_TOKEN", "CLOUDFLARE_API_TOKEN"))
+    cloudflare_whisper_model: str = "@cf/openai/whisper-large-v3-turbo"
     local_whisper_model: str = "small"                     # tiny | base | small | medium (CPU)
     local_whisper_fallback: bool = True                    # use the local model when Groq fails
     captions_warm_model: bool = True                       # no Groq key: download/load the local model at start-up

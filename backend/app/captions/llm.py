@@ -1,8 +1,9 @@
-"""AI text features (Claude): translation, Roman Urdu / Hinglish, keyword + emoji picks and hook titles.
+"""AI text features: translation, Roman Urdu / Hinglish, keyword + emoji picks and hook titles.
 
-Only the transcript *text* is sent, never the audio or video. Everything here is optional: without an
-API key the tool falls back to Whisper translation (English only), offline romanisation and the
-heuristics in enhance.py.
+Provider: Claude when CF_ANTHROPIC_API_KEY is set (best quality, paid), else Groq's free tier with an
+open-weight model (CF_GROQ_API_KEY, the same key as speech-to-text, no cost). Only the transcript *text*
+is sent, never the audio or video. Without either key the tool falls back to Whisper translation (English
+only), offline romanisation and the heuristics in enhance.py.
 """
 
 from __future__ import annotations
@@ -10,15 +11,18 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from functools import lru_cache
 from typing import Any
 
 import anthropic
+import httpx
 
 from ..config import get_settings
 
 log = logging.getLogger("uvicorn.error")
 BATCH = 80     # lines per request: keeps each answer well inside the output limit
+GROQ_BATCH = 30  # smaller requests for the free tier's tokens-per-minute limit
 
 
 class LlmError(Exception):
@@ -31,8 +35,17 @@ def api_key() -> str | None:
     return key or None
 
 
+def groq_key() -> str | None:
+    k = (get_settings().groq_api_key or os.environ.get("GROQ_API_KEY") or "").strip().strip("\"'")
+    return k or None
+
+
+def provider() -> str | None:
+    return "claude" if api_key() else "groq" if groq_key() else None
+
+
 def available() -> bool:
-    return api_key() is not None
+    return provider() is not None
 
 
 @lru_cache
@@ -43,6 +56,8 @@ def _client(key: str) -> anthropic.Anthropic:
 def _ask(system: str, payload: dict[str, Any], schema: dict[str, Any]) -> dict[str, Any]:
     key = api_key()
     if key is None:
+        if groq_key():
+            return _ask_groq(system, payload, schema)
         raise LlmError("AI features aren't set up on this server.")
     s = get_settings()
     try:
@@ -73,7 +88,52 @@ def _ask(system: str, payload: dict[str, Any], schema: dict[str, Any]) -> dict[s
         raise LlmError("The AI answer couldn't be read. Please try again.") from e
 
 
-def _batches(items: list, size: int = BATCH):
+def _ask_groq(system: str, payload: dict[str, Any], schema: dict[str, Any]) -> dict[str, Any]:
+    """Groq free tier (OpenAI-compatible chat API) with an open-weight model, JSON output."""
+    s = get_settings()
+    body = {
+        "model": s.groq_llm_model,
+        "messages": [
+            {"role": "system", "content": system + "\n\nAnswer with one JSON object only, matching this JSON schema:\n"
+                                          + json.dumps(schema, ensure_ascii=False)},
+            {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": 0.2,
+        "max_completion_tokens": 8000,
+    }
+    for attempt in range(3):
+        try:
+            r = httpx.post("https://api.groq.com/openai/v1/chat/completions", json=body,
+                           headers={"Authorization": f"Bearer {groq_key()}"}, timeout=httpx.Timeout(120, connect=15))
+        except httpx.HTTPError as e:
+            raise LlmError("Couldn't reach the AI service. Please try again.") from e
+        if r.status_code == 429 and attempt < 2:
+            # Free tier: a few thousand tokens per minute. Wait as told, then try again.
+            try:
+                wait = min(30.0, float(r.headers.get("retry-after", "8")))
+            except ValueError:
+                wait = 8.0
+            time.sleep(wait)
+            continue
+        if r.status_code == 429:
+            raise LlmError("The free AI limit is reached for now. Please try again later.")
+        if r.status_code >= 400:
+            log.warning("groq llm %s: %s", r.status_code, r.text[:300])
+            raise LlmError("The AI service had a problem. Please try again.")
+        try:
+            content = r.json()["choices"][0]["message"]["content"]
+            data = json.loads(content)
+        except (KeyError, IndexError, TypeError, json.JSONDecodeError) as e:
+            raise LlmError("The AI answer couldn't be read. Please try again.") from e
+        if not isinstance(data, dict):
+            raise LlmError("The AI answer couldn't be read. Please try again.")
+        return data
+    raise LlmError("The AI is busy right now. Please try again in a minute.")
+
+
+def _batches(items: list, size: int | None = None):
+    size = size or (BATCH if api_key() else GROQ_BATCH)
     for i in range(0, len(items), size):
         yield i, items[i:i + size]
 
