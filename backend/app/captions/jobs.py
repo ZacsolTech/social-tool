@@ -324,7 +324,7 @@ def task_transcribe(job: Job, subtitles: str | None = None, reuse: dict | None =
     if not res.words:
         raise JobError("We couldn't hear any speech in this video. If it has speech, try choosing the language.")
     lang = job.language if (choice and job.language != "auto") else (res.language or "en")
-    lines = build_lines(res.words, lang)
+    lines = build_lines(res.words, lang, breaks=[s for s, _, _ in res.segments])
     t = Transcript(language=lang, lines=lines, source="ai", rev=1)
     _proofread(job, t, res.language or stt_lang or lang)
     if roman:

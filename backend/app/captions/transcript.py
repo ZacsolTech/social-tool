@@ -101,21 +101,28 @@ def clean_word(text: str) -> str:
 
 
 def build_lines(words: list[Word], lang: str | None = None, max_words: int = 12, max_chars: int = 70,
-                max_dur: float = 7.0, gap: float = 0.8) -> list[Line]:
-    """Group a stream of timed words into editor lines (roughly sentences)."""
+                max_dur: float = 7.0, gap: float = 0.8, breaks: list[float] | None = None) -> list[Line]:
+    """Group a stream of timed words into editor lines (roughly sentences). `breaks`: times where the speech
+    recogniser started a new sentence (its segments); a line never runs across one."""
     lines: list[Line] = []
     cur: list[Word] = []
     chars = 0
     sep = len(joiner(lang))
+    bounds = sorted(breaks or [])
+    bi = 0
     for w in words:
         w.text = clean_word(w.text)
         if not w.text:
             continue
+        crossed = False
+        while bi < len(bounds) and bounds[bi] <= w.start + 0.05:
+            crossed = crossed or (bool(cur) and bounds[bi] > cur[-1].start + 0.05)
+            bi += 1
         if cur:
             pause = w.start - cur[-1].end
             too_long = (len(cur) >= max_words or chars + sep + len(w.text) > max_chars
                         or w.end - cur[0].start > max_dur)
-            if pause > gap or too_long:
+            if pause > gap or too_long or (crossed and len(cur) >= 2):
                 lines.append(Line(words=cur))
                 cur, chars = [], 0
         cur.append(w)

@@ -48,11 +48,32 @@ def keys(monkeypatch, tmp_path):
     stt._cooldown.clear()
 
 
-def test_style_prompt_only_for_known_languages():
-    assert stt.build_prompt("ur", None).endswith("۔")
-    assert stt.build_prompt(None, "Klyprima") == "Klyprima"
-    assert stt.build_prompt("en", "Klyprima, Karachi").endswith("Klyprima, Karachi")
-    assert stt.build_prompt(None, None) is None
+def test_prompt_is_only_the_visitors_words():
+    # No sample sentence: large-v3 copied it into the captions and skipped the speech on a real clip.
+    assert stt.build_prompt("ur", None) is None
+    assert stt.build_prompt("en", " Klyprima, Karachi ") == "Klyprima, Karachi"
+
+
+def test_prompt_echo_is_detected():
+    echo = [(0.0, 1.9, "admission chahiye"), (11.0, 41.0, "aaj hum iske bare mein baat karenge."),
+            (41.0, 60.0, "aaj hum iske bare mein baat karenge.")]
+    good = [(0.0, 1.9, "admission chahiye"), (13.2, 15.9, "to phir ek pre-medical entrance exam deni hogi")]
+    assert stt._suspicious(echo) and not stt._suspicious(good)
+
+
+def test_prompt_echo_is_transcribed_again_without_the_prompt(keys, monkeypatch):
+    prompts = []
+
+    def post(url, **kw):
+        prompts.append(kw["data"].get("prompt"))
+        if kw["data"].get("prompt"):
+            seg = {"start": 0.0, "end": 40.0, "text": "Klyprima", "no_speech_prob": 0, "avg_logprob": -0.1,
+                   "compression_ratio": 1.0}
+            return Resp(200, {"segments": [seg], "words": [{"word": "Klyprima", "start": 0, "end": 40}]})
+        return Resp(200, {**WHISPER, "words": [w for s in WHISPER["segments"] for w in s["words"]]})
+    monkeypatch.setattr(stt.httpx, "post", post)
+    res = stt.transcribe(keys, "ur", prompt="Klyprima")
+    assert prompts == ["Klyprima", None] and [w.text for w in res.words] == ["آج", "ہم"]
 
 
 def test_provider_order(keys, monkeypatch):
@@ -71,7 +92,7 @@ def test_groq_quota_moves_to_cloudflare_and_cools_down(keys, monkeypatch):
         body = kw["json"]
         assert base64.b64decode(body["audio"]).startswith(b"ID3")
         assert body["language"] == "ur" and body["vad_filter"] is True and body["task"] == "transcribe"
-        assert body["initial_prompt"].startswith("السلام")
+        assert "initial_prompt" not in body           # no visitor words -> no prompt at all
         assert kw["headers"]["Authorization"] == "Bearer cft"
         return Resp(200, {"success": True, "result": {"transcription_info": {"language": "ur"},
                                                       "segments": WHISPER["segments"]}})

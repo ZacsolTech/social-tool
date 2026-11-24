@@ -50,33 +50,23 @@ class Cancelled(Exception):
     pass
 
 
-# Short phrases in each language, written the way captions should look. Whisper continues the style of
-# its prompt: right script (Urdu stays in Urdu letters, not Hindi), punctuation and casing.
-STYLE_PROMPTS = {
-    "en": "Hello everyone, welcome back. Today, we're going to talk about it.",
-    "ur": "السلام علیکم دوستو، آج ہم اس بارے میں بات کریں گے۔",
-    "hi": "नमस्ते दोस्तों, आज हम इसके बारे में बात करेंगे।",
-    "ar": "مرحباً بكم، اليوم سنتحدث عن هذا الموضوع.",
-    "bn": "সবাইকে স্বাগতম, আজ আমরা এই বিষয়ে কথা বলব।",
-    "pa": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ ਦੋਸਤੋ, ਅੱਜ ਅਸੀਂ ਇਸ ਬਾਰੇ ਗੱਲ ਕਰਾਂਗੇ।",
-    "fa": "سلام دوستان، امروز درباره این موضوع صحبت می‌کنیم.",
-    "es": "Hola a todos, bienvenidos. Hoy vamos a hablar de esto.",
-    "pt": "Olá a todos, bem-vindos. Hoje vamos falar sobre isso.",
-    "fr": "Bonjour à tous, bienvenue. Aujourd'hui, nous allons en parler.",
-    "id": "Halo semuanya, selamat datang. Hari ini kita akan membahasnya.",
-    "tr": "Herkese merhaba, hoş geldiniz. Bugün bunu konuşacağız.",
-}
-
-
 def build_prompt(language: str | None, user: str | None) -> str | None:
-    """Style phrase for the language (only when it's known: it would bias auto-detection) + the visitor's
-    names and special words."""
-    parts = []
-    if language and language in STYLE_PROMPTS:
-        parts.append(STYLE_PROMPTS[language])
-    if user and user.strip():
-        parts.append(user.strip())
-    return " ".join(parts)[:800] or None
+    """Only the visitor's own names and special words. No sample sentence: Whisper (large-v3 especially)
+    copies a prompt sentence into the captions and then skips the real speech (seen on real clips)."""
+    text = (user or "").strip()
+    return text[:400] or None
+
+
+def _suspicious(segments: list[tuple[float, float, str]]) -> bool:
+    """Signs that Whisper copied its prompt or looped instead of transcribing: a few words stretched over
+    a long time, or the same sentence repeated back to back."""
+    for k, (s, e, text) in enumerate(segments):
+        words = len(text.split())
+        if e - s > 12 and words < (e - s) * 0.6:
+            return True
+        if k and text and text == segments[k - 1][2] and len(text.split()) > 3:
+            return True
+    return False
 
 
 def _filter(segs: list[dict], words: list[dict], offset: float) -> tuple[list[Word], list[tuple[float, float, str]]]:
@@ -477,8 +467,19 @@ def transcribe(audio: Path, language: str | None, prompt: str | None = None,
     def local() -> SttResult:
         lang, words, segments = _local_run(audio, language, p, "transcribe", cancelled, progress, stage)
         return SttResult(languages.normalize(language or lang), words, "local", segments)
+    def retry_plain(run, res: SttResult) -> SttResult:
+        """A prompt made Whisper loop or copy it: listen again without one."""
+        if p and _suspicious(res.segments):
+            log.info("%s result looks like a prompt echo; transcribing again without the prompt", res.provider)
+            try:
+                return run(None)
+            except SttError:
+                return res
+        return res
+
     def groq() -> SttResult:
-        res = _groq_transcribe(audio, language, p, cancelled, progress)
+        res = retry_plain(lambda pr: _groq_transcribe(audio, language, pr, cancelled, progress),
+                          _groq_transcribe(audio, language, p, cancelled, progress))
         # Auto-detected Urdu/Hindi...: listen again with the full model, the language and its style prompt.
         if language is None and res.language in get_settings().groq_accurate_languages:
             try:
@@ -488,7 +489,8 @@ def transcribe(audio: Path, language: str | None, prompt: str | None = None,
         return res
     return _chain({  # type: ignore[return-value]
         "groq": groq,
-        "cloudflare": lambda: _cf_transcribe(audio, language, p, cancelled, progress),
+        "cloudflare": lambda: retry_plain(lambda pr: _cf_transcribe(audio, language, pr, cancelled, progress),
+                                          _cf_transcribe(audio, language, p, cancelled, progress)),
         "local": local,
     })
 
