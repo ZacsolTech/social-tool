@@ -1,6 +1,7 @@
 "use client";
 
 import clsx from "clsx";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { type CSSProperties, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { type CConfig, type Extras, fontStack, cssFamily } from "@/lib/captions";
 import {
@@ -52,6 +53,38 @@ export function CaptionPreview({
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const box = useRef<HTMLDivElement>(null);
+  const frame = useRef<HTMLDivElement>(null);
+  // Fullscreen covers the video AND the captions drawn over it (the player's own fullscreen button would
+  // show the bare video). "pseudo" = a fixed full-window layer where the Fullscreen API isn't available (iPhone).
+  const [nativeFs, setNativeFs] = useState(false);
+  const [pseudoFs, setPseudoFs] = useState(false);
+  const full = nativeFs || pseudoFs;
+
+  useEffect(() => {
+    const on = () => setNativeFs(!!frame.current && document.fullscreenElement === frame.current);
+    document.addEventListener("fullscreenchange", on);
+    return () => document.removeEventListener("fullscreenchange", on);
+  }, []);
+
+  useEffect(() => {
+    if (!pseudoFs) return;
+    const key = (e: KeyboardEvent) => e.key === "Escape" && setPseudoFs(false);
+    window.addEventListener("keydown", key);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", key);
+      document.body.style.overflow = prev;
+    };
+  }, [pseudoFs]);
+
+  function toggleFullscreen() {
+    if (nativeFs) return void document.exitFullscreen().catch(() => undefined);
+    if (pseudoFs) return setPseudoFs(false);
+    const el = frame.current;
+    if (el?.requestFullscreen) el.requestFullscreen().catch(() => setPseudoFs(true));
+    else setPseudoFs(true);
+  }
   const [t, setT] = useState(0);
   const [boxSize, setBoxSize] = useState({ w: 320, h: 568 });
   const ratio = width && height ? width / height : 9 / 16;
@@ -116,15 +149,29 @@ export function CaptionPreview({
 
   return (
     <div className={clsx("mx-auto w-full", portrait ? "max-w-[340px]" : "max-w-full")}>
+      <div ref={frame} className={clsx(full && "fixed inset-0 z-[100] flex items-center justify-center bg-black")}>
       <div
         ref={box}
-        className="relative w-full overflow-hidden rounded-2xl bg-neutral-950 shadow-card"
-        style={{ aspectRatio: String(ratio), maxHeight: "72vh" }}
+        className={clsx("relative overflow-hidden bg-neutral-950", full ? "" : "w-full rounded-2xl shadow-card")}
+        style={
+          full
+            ? { aspectRatio: String(ratio), width: `min(100vw, ${(ratio * 100).toFixed(3)}vh)`, maxHeight: "100vh" }
+            : { aspectRatio: String(ratio), maxHeight: "72vh" }
+        }
       >
         {result ? (
           <video key={result} ref={video} src={result} controls playsInline className="absolute inset-0 size-full object-contain" />
         ) : src ? (
-          <video ref={video} src={src} controls playsInline preload="metadata" className="absolute inset-0 size-full object-contain" />
+          <video
+            ref={video}
+            src={src}
+            controls
+            playsInline
+            preload="metadata"
+            controlsList="nofullscreen"
+            disablePictureInPicture
+            className="absolute inset-0 size-full object-contain"
+          />
         ) : (
           <div className="absolute inset-0 grid place-items-center p-6 text-center text-xs text-white/60">Your video appears here</div>
         )}
@@ -194,6 +241,18 @@ export function CaptionPreview({
             )}
           </div>
         )}
+        {!result && src && (
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            aria-label={full ? "Exit full screen" : "Full screen with captions"}
+            title={full ? "Exit full screen (Esc)" : "Full screen with captions"}
+            className="absolute right-2 top-2 z-10 grid size-9 place-items-center rounded-full bg-black/55 text-white backdrop-blur transition hover:bg-black/75"
+          >
+            {full ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+          </button>
+        )}
+      </div>
       </div>
     </div>
   );
