@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     # this server's CPU. GROQ_API_KEY works too.
     groq_api_key: str | None = Field(None, validation_alias=AliasChoices("CF_GROQ_API_KEY", "GROQ_API_KEY"))
     groq_model: str = "whisper-large-v3-turbo"
+    # Low-resource languages lose accuracy in "turbo" (its decoder was cut down): use the full model for them.
+    groq_model_accurate: str = "whisper-large-v3"
+    groq_accurate_languages: list[str] = ["ur", "hi", "pa", "sd", "ps", "bn", "fa", "ne", "mr", "gu", "ta", "te"]
+    # After speech-to-text, a text AI fixes misheard words using the whole transcript (same word count, so the
+    # timings stay). Free with the Groq key.
+    captions_ai_proofread: bool = True
     groq_translate_model: str = "whisper-large-v3"        # speech -> English translation
     # Free text model on the same Groq key: AI translation / Roman Urdu / highlights when there's no Anthropic key.
     groq_llm_model: str = "openai/gpt-oss-120b"

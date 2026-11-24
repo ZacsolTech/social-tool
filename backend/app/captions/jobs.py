@@ -326,11 +326,36 @@ def task_transcribe(job: Job, subtitles: str | None = None, reuse: dict | None =
     lang = job.language if (choice and job.language != "auto") else (res.language or "en")
     lines = build_lines(res.words, lang)
     t = Transcript(language=lang, lines=lines, source="ai", rev=1)
+    _proofread(job, t, res.language or stt_lang or lang)
     if roman:
         _romanize_words(t, "urdu" if job.language == "ur-Latn" else "hindi", allow_ai=True)
         t.language = job.language
     job.transcript = normalize(t, job.info.duration)
     job.progress = 1.0
+
+
+def _proofread(job: Job, t: Transcript, heard_lang: str) -> None:
+    """Middle layer: a text AI fixes misheard words using the whole transcript. Word count per line must stay
+    the same (so every word keeps its timing); otherwise that line is left as heard."""
+    if not (get_settings().captions_ai_proofread and llm.available() and t.lines):
+        return
+    job.stage = "AI is checking the words"
+    try:
+        fixed = llm.proofread([(ln.id, [w.text for w in ln.words]) for ln in t.lines],
+                              languages.info(heard_lang).name, job.prompt)
+    except llm.LlmError as e:
+        log.info("proofread skipped: %s", e)
+        return
+    changed = 0
+    for ln in t.lines:
+        new = fixed.get(ln.id)
+        if new and len(new) == len(ln.words):
+            for w, x in zip(ln.words, new):
+                x = x.strip()
+                if x and x != w.text:
+                    w.text = x
+                    changed += 1
+    log.info("captions %s proofread: %d words fixed", job.id, changed)
 
 
 def _romanize_words(t: Transcript, style: str, allow_ai: bool) -> None:

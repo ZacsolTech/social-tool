@@ -172,6 +172,37 @@ def translate(lines: list[tuple[str, str]], source: str, target: str) -> dict[st
     return out
 
 
+# ---------------------------------------------------------------- proofreading (misheard words)
+
+_PROOF_SYSTEM = (
+    "You proofread automatic speech-recognition captions. Each line is the list of words the recogniser heard, "
+    "in order. Using the context of the whole video, fix ONLY words that were clearly misheard: a wrong word that "
+    "sounds similar, a broken or misspelled word, a name or term from the hints written wrongly, a word in the "
+    "wrong script. Keep the speaker's own words, slang, grammar and meaning: never paraphrase, translate, "
+    "summarise, add or remove words. Return every line with the same id and EXACTLY the same number of words "
+    "(one output word for each input word, punctuation attached). When unsure, keep the word as it is."
+)
+
+
+def proofread(lines: list[tuple[str, list[str]]], language: str, hints: str | None) -> dict[str, list[str]]:
+    schema = {
+        "type": "object",
+        "properties": {"lines": {"type": "array", "items": {
+            "type": "object",
+            "properties": {"id": {"type": "string"}, "words": {"type": "array", "items": {"type": "string"}}},
+            "required": ["id", "words"], "additionalProperties": False}}},
+        "required": ["lines"], "additionalProperties": False,
+    }
+    out: dict[str, list[str]] = {}
+    for _, chunk in _batches(lines):
+        payload = {"language": language, "hints": hints or "", "lines": [{"id": i, "words": w} for i, w in chunk]}
+        data = _ask(_PROOF_SYSTEM, payload, schema)
+        for row in data.get("lines", []):
+            if isinstance(row, dict) and row.get("id") and isinstance(row.get("words"), list):
+                out[str(row["id"])] = [str(x) for x in row["words"]]
+    return out
+
+
 # ---------------------------------------------------------------- romanisation
 
 _ROMAN_SYSTEM = (

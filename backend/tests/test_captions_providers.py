@@ -108,7 +108,7 @@ def test_groq_sends_word_timestamps_and_prompt(keys, monkeypatch):
         return Resp(200, {**WHISPER, "words": [w for s in WHISPER["segments"] for w in s["words"]]})
     monkeypatch.setattr(stt.httpx, "post", post)
     res = stt.transcribe(keys, "ur", prompt="Klyprima")
-    assert res.provider == "groq" and seen["model"] == "whisper-large-v3-turbo"
+    assert res.provider == "groq" and seen["model"] == "whisper-large-v3"      # Urdu: the full model
     assert seen["timestamp_granularities[]"] == ["word", "segment"] and seen["prompt"].endswith("Klyprima")
     assert [w.text for w in res.words] == ["آج", "ہم"]
 
@@ -161,3 +161,30 @@ def test_config_reports_providers(keys):
     with TestClient(app) as c:
         f = c.get("/api/captions/config").json()["features"]
     assert f["stt_providers"] == ["groq", "cloudflare", "local"] and f["ai_provider"] == "groq" and f["ai"] is True
+
+
+def test_urdu_uses_the_full_model_and_auto_detect_listens_again(keys, monkeypatch):
+    models = []
+
+    def post(url, **kw):
+        models.append((kw["data"]["model"], kw["data"].get("language")))
+        return Resp(200, {**WHISPER, "words": [w for s in WHISPER["segments"] for w in s["words"]]})
+    monkeypatch.setattr(stt.httpx, "post", post)
+    stt.transcribe(keys, "ur")
+    assert models[-1] == ("whisper-large-v3", "ur")
+    models.clear()
+    stt.transcribe(keys, "en")
+    assert models == [("whisper-large-v3-turbo", "en")]
+    models.clear()
+    res = stt.transcribe(keys, None)            # auto: turbo detects Urdu -> second pass with the full model
+    assert models == [("whisper-large-v3-turbo", None), ("whisper-large-v3", "ur")] and res.language == "ur"
+
+
+def test_proofread_keeps_word_count(keys, monkeypatch):
+    def post(url, **kw):
+        lines = json.loads(kw["json"]["messages"][1]["content"])["lines"]
+        out = [{"id": x["id"], "words": [w.replace("كتاب", "کتاب") for w in x["words"]]} for x in lines]
+        return Resp(200, {"choices": [{"message": {"content": json.dumps({"lines": out})}}]})
+    monkeypatch.setattr(llm.httpx, "post", post)
+    res = llm.proofread([("a", ["یہ", "كتاب"])], "Urdu", "Klyprima")
+    assert res == {"a": ["یہ", "کتاب"]}

@@ -182,7 +182,8 @@ def _groq_transcribe(audio: Path, language: str | None, prompt: str | None, canc
     for k, (path, offset) in enumerate(parts):
         if cancelled():
             raise Cancelled()
-        data: dict = {"model": s.groq_model, "response_format": "verbose_json", "temperature": "0",
+        model = s.groq_model_accurate if language in s.groq_accurate_languages else s.groq_model
+        data: dict = {"model": model, "response_format": "verbose_json", "temperature": "0",
                       "timestamp_granularities[]": ["word", "segment"]}
         if language:
             data["language"] = language
@@ -476,8 +477,17 @@ def transcribe(audio: Path, language: str | None, prompt: str | None = None,
     def local() -> SttResult:
         lang, words, segments = _local_run(audio, language, p, "transcribe", cancelled, progress, stage)
         return SttResult(languages.normalize(language or lang), words, "local", segments)
+    def groq() -> SttResult:
+        res = _groq_transcribe(audio, language, p, cancelled, progress)
+        # Auto-detected Urdu/Hindi...: listen again with the full model, the language and its style prompt.
+        if language is None and res.language in get_settings().groq_accurate_languages:
+            try:
+                return _groq_transcribe(audio, res.language, build_prompt(res.language, prompt), cancelled, progress)
+            except SttError as e:
+                log.info("accurate second pass skipped: %s", e.message)
+        return res
     return _chain({  # type: ignore[return-value]
-        "groq": lambda: _groq_transcribe(audio, language, p, cancelled, progress),
+        "groq": groq,
         "cloudflare": lambda: _cf_transcribe(audio, language, p, cancelled, progress),
         "local": local,
     })

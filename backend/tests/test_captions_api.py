@@ -422,3 +422,27 @@ def test_video_without_sound_is_explained(client, media):
 def test_health_counts_caption_jobs(client):
     h = client.get("/api/health").json()
     assert "captions_jobs" in h and "captions_waiting" in h
+
+
+def test_proofread_layer_fixes_misheard_words_and_keeps_timings(client, media, monkeypatch):
+    monkeypatch.setattr(llm, "available", lambda: True)
+    seen = {}
+
+    def proofread(lines, language, hints):
+        seen["lang"], seen["hints"] = language, hints
+        out = {}
+        for i, (lid, words) in enumerate(lines):
+            new = list(words)
+            if i == 0:
+                new[0] = "KYA"                       # a fixed word
+            else:
+                new = new[:-1]                       # wrong word count: this line must stay as heard
+            out[lid] = new
+        return out
+    monkeypatch.setattr(llm, "proofread", proofread)
+    job = create(client, media["face"], language="hi", prompt="Klyprima")
+    assert seen == {"lang": "Hindi", "hints": "Klyprima"}
+    lines = job["transcript"]["lines"]
+    assert lines[0]["words"][0]["text"] == "KYA" and abs(lines[0]["words"][0]["start"] - 0.3) < 1e-6
+    heard = SPEECH["hi"].split()
+    assert [w["text"] for ln in lines[1:] for w in ln["words"]] == heard[len(lines[0]["words"]):]
