@@ -318,7 +318,8 @@ def task_transcribe(job: Job, subtitles: str | None = None, reuse: dict | None =
     roman = job.language in ("ur-Latn", "hi-Latn")
     # Roman Urdu / Hinglish: transcribe as Hindi (Devanagari writes every vowel), then romanise word by word.
     stt_lang = "hi" if roman else (choice.stt if choice else None)
-    res = stt.transcribe(audio, stt_lang, job.prompt, job.cancel.is_set, _phase(job, lo, 0.95))
+    res = stt.transcribe(audio, stt_lang, job.prompt, job.cancel.is_set, _phase(job, lo, 0.95),
+                         stage=lambda s: setattr(job, "stage", s))
     job.provider = res.provider
     if not res.words:
         raise JobError("We couldn't hear any speech in this video. If it has speech, try choosing the language.")

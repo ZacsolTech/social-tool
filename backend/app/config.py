@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     groq_translate_model: str = "whisper-large-v3"        # speech -> English translation
     local_whisper_model: str = "small"                     # tiny | base | small | medium (CPU)
     local_whisper_fallback: bool = True                    # use the local model when Groq fails
+    captions_warm_model: bool = True                       # no Groq key: download/load the local model at start-up
     whisper_dir: Path = BACKEND_DIR / "whisper-models"
     # AI text features (translation, Roman Urdu polish, highlights, hook titles). ANTHROPIC_API_KEY works too.
     anthropic_api_key: str | None = Field(None, validation_alias=AliasChoices("CF_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY"))

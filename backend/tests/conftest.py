@@ -3,7 +3,11 @@ public sample photo from the OpenCV repository, cached under .tmp/test-assets)."
 
 from __future__ import annotations
 
-import math
+import os
+
+os.environ.setdefault("CF_CAPTIONS_WARM_MODEL", "false")   # tests don't download the 480 MB speech model
+
+import math  # noqa: E402
 import subprocess
 import sys
 from collections.abc import Callable, Iterator

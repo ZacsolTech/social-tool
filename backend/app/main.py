@@ -62,6 +62,9 @@ async def lifespan(app: FastAPI):
     app.state.http = httpx.AsyncClient(follow_redirects=True, timeout=30)
     janitor = asyncio.create_task(_janitor())
     asyncio.get_running_loop().run_in_executor(None, _warm_models)
+    # Captions without a Groq key: fetch the local speech model now, not when the first visitor needs it.
+    from .captions import stt as captions_stt
+    asyncio.get_running_loop().run_in_executor(None, captions_stt.warm_local_model)
     yield
     janitor.cancel()
     for r in cache.values():

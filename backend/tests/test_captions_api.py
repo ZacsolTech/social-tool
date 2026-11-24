@@ -59,7 +59,7 @@ def client(isolated, monkeypatch, calls):
     rapi._minute.clear()
     rapi._daily.clear()
 
-    def transcribe(audio, language, prompt=None, cancelled=lambda: False, progress=lambda p: None):
+    def transcribe(audio, language, prompt=None, cancelled=lambda: False, progress=lambda p: None, stage=lambda s: None):
         calls.append(("stt", language, prompt))
         assert Path(audio).exists() and Path(audio).stat().st_size > 1000
         lang = language or "en"

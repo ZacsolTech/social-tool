@@ -34,7 +34,7 @@ RUN python -c "from app.reframe import models; [models.path(k) for k in models.M
 # --build-arg WHISPER_PRELOAD= to skip it (smaller image; it then downloads on first use).
 ARG WHISPER_PRELOAD=small
 RUN if [ -n "$WHISPER_PRELOAD" ]; then \
-      python -c "from faster_whisper.utils import download_model; download_model('$WHISPER_PRELOAD', cache_dir='/app/whisper-models')" \
+      HF_HUB_DISABLE_XET=1 python -c "from faster_whisper.utils import download_model; download_model('$WHISPER_PRELOAD', cache_dir='/app/whisper-models')" \
       && rm -rf /root/.cache; \
     fi
 ENV CF_LOCAL_WHISPER_MODEL=${WHISPER_PRELOAD:-small}

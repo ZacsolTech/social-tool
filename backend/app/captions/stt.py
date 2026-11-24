@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 import threading
 from collections.abc import Callable
@@ -77,7 +78,6 @@ def split_audio(audio: Path, seconds: int = 1200) -> list[tuple[Path, float]]:
 
 
 def _groq_key() -> str | None:
-    import os
     k = (get_settings().groq_api_key or os.environ.get("GROQ_API_KEY") or "").strip().strip("\"'")
     return k or None
 
@@ -158,29 +158,106 @@ def _groq_translate(audio: Path, prompt: str | None, cancelled: Callable[[], boo
 
 _model_lock = threading.Lock()
 _models: dict[str, object] = {}
+_download: threading.Thread | None = None
+DOWNLOAD_WAIT_SEC = 15 * 60
 
 
 def local_model_dir() -> Path:
     return get_settings().whisper_dir
 
 
-def _local_model():
+def _hf_env() -> None:
+    """Model downloads: plain HTTP with timeouts (the default "xet" transfer can stall forever) and every
+    cache under the model folder (not the user's profile on C:). Read by huggingface_hub at import."""
+    d = local_model_dir()
+    os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+    os.environ.setdefault("HF_HOME", str(d / "hf-home"))
+    os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", "60")
+    os.environ.setdefault("HF_HUB_ETAG_TIMEOUT", "20")
+    os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+
+
+_hf_env()
+
+
+def _model_files(name: str) -> str | None:
+    """Local folder of a downloaded model, None if it isn't fully downloaded yet."""
+    from faster_whisper.utils import download_model
+    try:
+        return download_model(name, local_files_only=True, cache_dir=str(local_model_dir()))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _fetch(name: str) -> None:
+    from faster_whisper.utils import download_model
+    try:
+        download_model(name, cache_dir=str(local_model_dir()))
+        log.info("speech model %s downloaded", name)
+    except Exception as e:  # noqa: BLE001
+        log.warning("speech model %s download failed: %s", name, e)
+
+
+def ensure_local_model(stage: Callable[[str], None] = lambda s: None, cancelled: Callable[[], bool] = lambda: False) -> str:
+    """Make sure the local model is on disk (downloading it once, in the background) and return its folder."""
+    global _download
+    name = get_settings().local_whisper_model
+    path = _model_files(name)
+    if path:
+        return path
+    stage("Getting the speech model ready (first time only)")
+    with _model_lock:
+        if _download is None or not _download.is_alive():
+            local_model_dir().mkdir(parents=True, exist_ok=True)
+            _download = threading.Thread(target=_fetch, args=(name,), daemon=True, name="whisper-download")
+            _download.start()
+        t = _download
+    waited = 0.0
+    while t.is_alive() and waited < DOWNLOAD_WAIT_SEC:
+        if cancelled():
+            raise Cancelled()
+        t.join(1.0)
+        waited += 1.0
+    path = _model_files(name)
+    if not path:
+        raise SttError("Speech-to-text is still starting up. Please try again in a few minutes.", 503)
+    return path
+
+
+def warm_local_model() -> None:
+    """At start-up without a Groq key: download the local model now so the first visitor doesn't wait."""
+    if _groq_key() or not get_settings().captions_warm_model:
+        return
+    try:
+        ensure_local_model()
+        _local_model()
+    except Exception as e:  # noqa: BLE001
+        log.warning("speech model warm-up failed: %s", e)
+
+
+def _local_model(stage: Callable[[str], None] = lambda s: None, cancelled: Callable[[], bool] = lambda: False):
     from faster_whisper import WhisperModel
     s = get_settings()
     name = s.local_whisper_model
+    if name in _models:
+        return _models[name]
+    path = ensure_local_model(stage, cancelled)
     with _model_lock:
         if name not in _models:
-            d = local_model_dir()
-            d.mkdir(parents=True, exist_ok=True)
-            _models[name] = WhisperModel(name, device="cpu", compute_type="int8", cpu_threads=max(1, s.captions_threads),
-                                         download_root=str(d))
+            _models[name] = WhisperModel(path, device="cpu", compute_type="int8", cpu_threads=max(1, s.captions_threads))
         return _models[name]
 
 
 def _local_run(audio: Path, language: str | None, prompt: str | None, task: str, cancelled: Callable[[], bool],
-               progress: Callable[[float], None]) -> tuple[str | None, list[Word], list[tuple[float, float, str]]]:
+               progress: Callable[[float], None], stage: Callable[[str], None] = lambda s: None,
+               ) -> tuple[str | None, list[Word], list[tuple[float, float, str]]]:
     try:
-        model = _local_model()
+        model = _local_model(stage, cancelled)
+        stage("AI is listening")
+    except (SttError, Cancelled):
+        raise
     except Exception as e:  # noqa: BLE001
         log.exception("local whisper unavailable: %s", e)
         raise SttError("Speech-to-text isn't available right now. Please try again later.", 503) from e
@@ -214,7 +291,8 @@ def provider_name() -> str:
 
 
 def transcribe(audio: Path, language: str | None, prompt: str | None = None,
-               cancelled: Callable[[], bool] = lambda: False, progress: Callable[[float], None] = lambda p: None) -> SttResult:
+               cancelled: Callable[[], bool] = lambda: False, progress: Callable[[float], None] = lambda p: None,
+               stage: Callable[[str], None] = lambda s: None) -> SttResult:
     """language: a Whisper code ("ur", "hi", ...) or None to detect it."""
     if _groq_key():
         try:
@@ -223,7 +301,7 @@ def transcribe(audio: Path, language: str | None, prompt: str | None = None,
             if not get_settings().local_whisper_fallback:
                 raise
             log.warning("groq failed (%s); using local whisper", e.message)
-    lang, words, segments = _local_run(audio, language, prompt, "transcribe", cancelled, progress)
+    lang, words, segments = _local_run(audio, language, prompt, "transcribe", cancelled, progress, stage)
     return SttResult(languages.normalize(language or lang), words, "local", segments)
 
 
