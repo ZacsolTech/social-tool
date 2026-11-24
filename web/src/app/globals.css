@@ -118,6 +118,19 @@ details > summary::-webkit-details-marker { display: none; }
 }
 .animate-in { animation: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
+/* Previews crop or zoom their video to fill a phone frame (object-cover, transforms). In fullscreen the whole
+   video must fit the screen instead, otherwise it looks zoomed in. */
+video:fullscreen,
+video:-webkit-full-screen {
+  object-fit: contain !important;
+  object-position: center !important;
+  transform: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  background: #000;
+}
+
 /* Caption preview entrances (match the animations libass draws in the export). */
 @keyframes kly-fade-k { from { opacity: 0; } to { opacity: 1; } }
 @keyframes kly-bounce-k { 0% { transform: scale(0.72); } 58% { transform: scale(1.08); } 100% { transform: scale(1); } }
