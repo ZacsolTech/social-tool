@@ -18,6 +18,7 @@ import {
   Subtitles,
   X,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, formatBytes, formatDuration, resolveUrl, type Resolved } from "@/lib/api";
 import { extractUrl } from "@/lib/platforms";
@@ -28,6 +29,8 @@ import {
   DEFAULT_LOOK,
   DEFAULT_SMART,
   type Job,
+  CAPTIONS_REFRAME_KEY,
+  type CaptionsReframeHandoff,
   HANDOFF_KEY,
   JOB_KEY,
   type LinkHandoff,
@@ -46,6 +49,8 @@ import {
   uploadFile,
   writeSession,
 } from "@/lib/reframe";
+import { CAPTIONS_HANDOFF_KEY, type CaptionsHandoff } from "@/lib/captions";
+import { CAPTIONS_SLUG } from "@/lib/captionTools";
 import type { ToolPreset } from "@/lib/tools";
 import { PhonePreview, type PreviewSource } from "./PhonePreview";
 import { SettingsPanel } from "./SettingsPanel";
@@ -61,7 +66,8 @@ type FileSource = {
   error: string | null;
 };
 type LinkSource = { kind: "link"; link: LinkHandoff };
-type SourceState = FileSource | LinkSource | null;
+type CaptionsSource = { kind: "captions"; handoff: CaptionsReframeHandoff };
+type SourceState = FileSource | LinkSource | CaptionsSource | null;
 
 function initialSettings(preset?: ToolPreset): Settings {
   return {
@@ -77,6 +83,7 @@ function initialSettings(preset?: ToolPreset): Settings {
 }
 
 export function ReframeTool({ preset }: { preset?: ToolPreset }) {
+  const router = useRouter();
   const [config, setConfig] = useState<Config | null>(null);
   const [settings, setSettings] = useState<Settings>(() => initialSettings(preset));
   const [source, setSource] = useState<SourceState>(null);
@@ -97,10 +104,24 @@ export function ReframeTool({ preset }: { preset?: ToolPreset }) {
 
   // Resume a job after a reload, or pick up a link handed over by the downloader ("Make it vertical").
   useEffect(() => {
+    const from = new URLSearchParams(window.location.search).get("from");
     const handoff = readSession<LinkHandoff>(HANDOFF_KEY);
-    if (handoff && new URLSearchParams(window.location.search).get("from") === "link") {
+    if (handoff && from === "link") {
       writeSession(HANDOFF_KEY, null);
+      writeSession(JOB_KEY, null);
+      setJob(null);
+      setEditing(false);
       setSource({ kind: "link", link: handoff });
+      return;
+    }
+    const fromCaptions = readSession<CaptionsReframeHandoff>(CAPTIONS_REFRAME_KEY);
+    if (fromCaptions && from === "captions") {
+      writeSession(CAPTIONS_REFRAME_KEY, null);
+      writeSession(JOB_KEY, null);
+      setJob(null);              // Next keeps visited pages alive: drop an earlier conversion
+      setEditing(false);
+      setError(null);
+      setSource({ kind: "captions", handoff: fromCaptions });
       return;
     }
     const saved = readSession<string>(JOB_KEY);
@@ -194,7 +215,7 @@ export function ReframeTool({ preset }: { preset?: ToolPreset }) {
 
   /* -------------------------------------------------------------- convert */
 
-  const ready = editing ? !!job : source?.kind === "link" || (source?.kind === "file" && !!source.uploadId);
+  const ready = editing ? !!job : source?.kind === "link" || source?.kind === "captions" || (source?.kind === "file" && !!source.uploadId);
 
   async function convert() {
     setError(null);
@@ -212,6 +233,9 @@ export function ReframeTool({ preset }: { preset?: ToolPreset }) {
         } else if (source?.kind === "link") {
           src = { type: "link", token: source.link.token, index: source.link.index };
           title = source.link.title;
+        } else if (source?.kind === "captions") {
+          src = { type: "captions", id: source.handoff.captions };
+          title = source.handoff.title;
         } else return;
         j = await createJob(src, settings, title);
       }
@@ -255,6 +279,7 @@ export function ReframeTool({ preset }: { preset?: ToolPreset }) {
   const preview: PreviewSource = useMemo(() => {
     if (source?.kind === "file") return { kind: "video", url: source.url };
     if (source?.kind === "link") return source.link.thumbnail ? { kind: "image", url: source.link.thumbnail } : null;
+    if (source?.kind === "captions") return { kind: "video", url: `/api/captions/jobs/${source.handoff.captions}/source` };
     if (job) return { kind: "video", url: job.source.url };
     return null;
   }, [source, job]);
@@ -262,7 +287,14 @@ export function ReframeTool({ preset }: { preset?: ToolPreset }) {
   const resultUrl =
     job?.state === "done" && !editing ? (job.outputs.find((o) => o.aspect === previewAspect)?.url ?? null) : null;
   const shownAspects = job && !editing ? job.aspects : settings.aspects;
-  const duration = source?.kind === "file" ? (source.info?.duration ?? null) : source?.kind === "link" ? source.link.duration : (job?.info?.duration ?? null);
+  const duration =
+    source?.kind === "file"
+      ? (source.info?.duration ?? null)
+      : source?.kind === "link"
+        ? source.link.duration
+        : source?.kind === "captions"
+          ? source.handoff.duration
+          : (job?.info?.duration ?? null);
   const showSettings = (!job || editing) && (source || editing);
 
   return (
@@ -338,7 +370,18 @@ export function ReframeTool({ preset }: { preset?: ToolPreset }) {
           )}
 
           {job?.state === "done" && !editing && (
-            <Results job={job} previewAspect={previewAspect} setPreviewAspect={setPreviewAspect} onEdit={() => setEditing(true)} onNew={clearSource} />
+            <Results
+              job={job}
+              previewAspect={previewAspect}
+              setPreviewAspect={setPreviewAspect}
+              onEdit={() => setEditing(true)}
+              onNew={clearSource}
+              onCaptions={() => {
+                const h: CaptionsHandoff = { kind: "reframe", job: job.id, aspect: previewAspect, title: job.title, reuse: job.source.captions ?? null };
+                writeSession(CAPTIONS_HANDOFF_KEY, h);
+                router.push(`/${CAPTIONS_SLUG}?from=reframe`);
+              }}
+            />
           )}
         </div>
 
@@ -533,7 +576,8 @@ function LinkInput({ onLink }: { onLink: (l: LinkHandoff) => void }) {
 }
 
 function SourceCard({ source, job, onClear, lockedTrim }: { source: SourceState; job: Job | null; onClear: () => void; lockedTrim: boolean }) {
-  const title = source?.kind === "file" ? source.file.name : source?.kind === "link" ? source.link.title : (job?.title ?? "Video");
+  const title =
+    source?.kind === "file" ? source.file.name : source?.kind === "link" ? source.link.title : source?.kind === "captions" ? source.handoff.title : (job?.title ?? "Video");
   const info = source?.kind === "file" ? source.info : (job?.info ?? null);
   const duration = info?.duration ?? (source?.kind === "link" ? source.link.duration : null);
   const uploading = source?.kind === "file" && !source.uploadId && !source.error;
@@ -632,12 +676,14 @@ function Results({
   setPreviewAspect,
   onEdit,
   onNew,
+  onCaptions,
 }: {
   job: Job;
   previewAspect: Aspect;
   setPreviewAspect: (a: Aspect) => void;
   onEdit: () => void;
   onNew: () => void;
+  onCaptions: () => void;
 }) {
   return (
     <div className="space-y-4">
@@ -672,12 +718,22 @@ function Results({
           <RefreshCw className="size-4" /> Convert another video
         </button>
       </div>
-      <div className="flex items-start gap-3 rounded-2xl border border-dashed border-line-strong p-3 text-sm">
-        <Subtitles className="mt-0.5 size-4 shrink-0 text-accent" />
-        <p className="text-muted">
-          <span className="font-medium text-fg">Next: captions.</span> Auto-captions (with Urdu, Hindi and Arabic) are coming soon, placed where they won&apos;t cover faces.
-        </p>
-      </div>
+      <button
+        type="button"
+        onClick={onCaptions}
+        className="flex w-full items-center gap-3 rounded-2xl border border-accent/40 bg-accent-soft/40 p-3 text-left text-sm transition hover:border-accent"
+      >
+        <Subtitles className="size-5 shrink-0 text-accent" />
+        <span className="min-w-0 flex-1">
+          <span className="block font-medium">{job.source.captions ? "Bring your captions back" : "Add captions"}</span>
+          <span className="block text-muted">
+            {job.source.captions
+              ? `Your edited captions go onto the ${previewAspect} video, no need to redo them.`
+              : "AI captions with word highlights and emojis on your vertical video. Urdu, Hindi, Arabic & more."}
+          </span>
+        </span>
+        <ArrowRight className="size-4 shrink-0 text-accent" />
+      </button>
     </div>
   );
 }

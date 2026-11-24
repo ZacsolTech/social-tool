@@ -1,20 +1,22 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { CaptionLanding } from "@/components/captions/CaptionLanding";
 import { JsonLd } from "@/components/JsonLd";
 import { ToolLanding } from "@/components/reframe/ToolLanding";
 import { ComingSoon, FaqSection, Features, Hero, HowItWorks, PlatformStrip, Tips, faqJsonLd } from "@/components/sections";
+import { CAPTION_PAGES, captionPageBySlug } from "@/lib/captionTools";
 import { CONTENT } from "@/lib/content";
 import { PLATFORMS, bySlug } from "@/lib/platforms";
 import { SITE } from "@/lib/site";
 import { TOOL_PAGES, toolBySlug } from "@/lib/tools";
 
 export function generateStaticParams() {
-  return [...PLATFORMS.map((p) => ({ slug: p.slug })), ...TOOL_PAGES.map((t) => ({ slug: t.slug }))];
+  return [...PLATFORMS.map((p) => ({ slug: p.slug })), ...TOOL_PAGES.map((t) => ({ slug: t.slug })), ...CAPTION_PAGES.map((t) => ({ slug: t.slug }))];
 }
 
 export async function generateMetadata({ params }: PageProps<"/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const tool = toolBySlug(slug);
+  const tool = toolBySlug(slug) ?? captionPageBySlug(slug);
   if (tool) {
     return {
       title: { absolute: `${tool.title} | ${SITE.name}` },
@@ -38,6 +40,8 @@ export default async function SlugPage({ params }: PageProps<"/[slug]">) {
   const { slug } = await params;
   const tool = toolBySlug(slug);
   if (tool) return <ToolLanding page={tool} />;
+  const captions = captionPageBySlug(slug);
+  if (captions) return <CaptionLanding page={captions} />;
 
   const p = bySlug(slug);
   if (!p) notFound();

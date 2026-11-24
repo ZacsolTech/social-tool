@@ -125,7 +125,7 @@ export type Job = {
   position: number;
   trim: [number, number | null];
   title: string;
-  source: { type: "upload" | "link"; url: string };
+  source: { type: "upload" | "link" | "captions"; url: string; captions?: string };
   info: MediaInfo | null;
   version: number;
   outputs: { aspect: Aspect; size: number; name: string; url: string }[];
@@ -136,7 +136,8 @@ export type Job = {
 
 export type Source =
   | { type: "upload"; id: string }
-  | { type: "link"; token: string; index: number };
+  | { type: "link"; token: string; index: number }
+  | { type: "captions"; id: string };
 
 export const ACTIVE: JobState[] = ["queued", "importing", "analysing", "rendering"];
 
@@ -296,6 +297,9 @@ export function formatEta(sec: number | null): string {
 /** The downloader's "Make it vertical" button hands its link over through sessionStorage. */
 export type LinkHandoff = { token: string; index: number; title: string; thumbnail: string | null; duration: number | null; width: number | null; height: number | null };
 export const HANDOFF_KEY = "klyprima:reframe-link";
+/** The caption tool's "Make it vertical" hands its project over through sessionStorage too. */
+export type CaptionsReframeHandoff = { captions: string; title: string; duration: number | null; width: number | null; height: number | null };
+export const CAPTIONS_REFRAME_KEY = "klyprima:reframe-captions";
 export const JOB_KEY = "klyprima:reframe-job";
 
 export function readSession<T>(key: string): T | null {

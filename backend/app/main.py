@@ -1,4 +1,4 @@
-"""Klyprima API: social video downloader + Reframe (landscape -> portrait) tool."""
+"""Klyprima API: social video downloader, Reframe (landscape -> portrait) and Captions tools."""
 
 from __future__ import annotations
 
@@ -25,6 +25,8 @@ from . import platforms
 from .config import get_settings
 from .extractor import Option, Resolved, ResolveError, resolve, safe_filename
 from . import jobs, vmux
+from .captions import api as captions_api
+from .captions import jobs as captions_jobs
 from .reframe import api as reframe_api
 from .reframe import jobs as reframe_jobs
 from .reframe import uploads as reframe_uploads
@@ -41,6 +43,7 @@ async def _janitor() -> None:
         _prune_cache()
         await asyncio.to_thread(jobs.prune, settings.info_ttl_sec)
         await asyncio.to_thread(reframe_jobs.prune, settings.reframe_ttl_sec)
+        await asyncio.to_thread(captions_jobs.prune, settings.reframe_ttl_sec)
         await asyncio.to_thread(reframe_uploads.prune, settings.reframe_ttl_sec)
 
 
@@ -66,7 +69,7 @@ async def lifespan(app: FastAPI):
     await app.state.http.aclose()
 
 
-app = FastAPI(title="Klyprima API", version="0.3.0", lifespan=lifespan)
+app = FastAPI(title="Klyprima API", version="0.4.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -74,6 +77,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(reframe_api.router)
+app.include_router(captions_api.router)
 
 
 # ---------------------------------------------------------------- helpers
@@ -164,7 +168,8 @@ class ResolveIn(BaseModel):
 
 @app.get("/api/health")
 async def health() -> dict[str, Any]:
-    return {"ok": True, "cached": len(cache), "reframe_jobs": len(reframe_jobs._jobs), "reframe_waiting": len(reframe_jobs._waiting)}
+    return {"ok": True, "cached": len(cache), "reframe_jobs": len(reframe_jobs._jobs), "reframe_waiting": len(reframe_jobs._waiting),
+            "captions_jobs": len(captions_jobs._jobs), "captions_waiting": len(captions_jobs._waiting)}
 
 
 @app.get("/api/platforms")

@@ -118,6 +118,16 @@ details > summary::-webkit-details-marker { display: none; }
 }
 .animate-in { animation: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
+/* Caption preview entrances (match the animations libass draws in the export). */
+@keyframes kly-fade-k { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kly-bounce-k { 0% { transform: scale(0.72); } 58% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes kly-slide-k { from { opacity: 0; transform: translateY(22%); } to { opacity: 1; transform: none; } }
+@keyframes kly-pop-k { from { transform: scale(0.85); } to { transform: scale(1); } }
+.kly-fade { animation: kly-fade-k 0.14s ease-out both; }
+.kly-bounce { animation: kly-bounce-k 0.19s ease-out both; }
+.kly-slide { animation: kly-slide-k 0.16s ease-out both; }
+.kly-pop { animation: kly-pop-k 0.09s ease-out both; display: inline-block; }
+
 /* Tailwind v4 resets buttons to the default arrow cursor; clickable things should show a hand. */
 @layer base {
   button:not(:disabled),

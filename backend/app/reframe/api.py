@@ -182,7 +182,7 @@ class SmartIn(BaseModel):
 
 
 class SourceIn(BaseModel):
-    type: Literal["upload", "link"]
+    type: Literal["upload", "link", "captions"]     # captions: the video of a caption project ("Make it vertical")
     id: str | None = Field(None, max_length=64)
     token: str | None = Field(None, max_length=64)
     index: int = Field(0, ge=0, le=50)
@@ -241,6 +241,22 @@ async def job_create(request: Request):
         kw = dict(src_path=up.path, info=info, title=body.title or up.filename, source={"type": "upload", "id": up.id})
         up.used_by += 1
         kw["upload_ref"] = up.id
+    elif src.type == "captions":
+        from ..captions import jobs as cjobs
+        try:
+            cj = cjobs.get(src.id or "")
+        except cjobs.JobError as e:
+            raise HTTPException(e.status, e.message) from e
+        if cj.ip != _ip(request):
+            raise HTTPException(403, "That video belongs to someone else.")
+        if cj.src_path is None or not Path(cj.src_path).exists() or cj.info is None:
+            raise HTTPException(409, "That video isn't ready yet.")
+        info = cj.info
+        end = min(body.trim_end or info.duration, info.duration)
+        if end - body.trim_start > s.reframe_max_duration_sec + 1:
+            raise HTTPException(422, f"Please choose up to {s.reframe_max_duration_sec // 60} minutes of the video (use Trim).")
+        kw = dict(info=info, title=body.title or cj.title, source={"type": "captions", "id": cj.id},
+                  _link_from=Path(cj.src_path))
     else:
         if not s.reframe_allow_links:
             raise HTTPException(422, "Links are turned off for this tool. Please upload the file.")
@@ -257,11 +273,15 @@ async def job_create(request: Request):
             kw["title"] = body.title or item.title or r.title
         kw["source"] = {"type": "link", "token": src.token, "index": src.index}
         kw.setdefault("title", body.title or "video")
+    link_from: Path | None = kw.pop("_link_from", None)
     job = jobs.new_job(
         ip=_ip(request), mode=body.mode, aspects=list(body.aspects), quality=body.quality,
         smart=body.smart.options(), look=Look(**body.look.model_dump()), position=body.position,
         trim_start=body.trim_start, trim_end=body.trim_end, **kw,
     )
+    if link_from is not None:   # own copy (hard link): the caption project may be deleted first
+        job.src_path = job.dir / f"source{link_from.suffix}"
+        jobs.link_or_copy(link_from, job.src_path)
     try:
         jobs.submit(job)
     except jobs.JobError as e:

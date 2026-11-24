@@ -45,6 +45,8 @@ git push -u origin main
    | `CF_ENABLE_YOUTUBE` | `true` / `false` | No (default `true`) |
    | `CF_COOKIES_TXT` | whole cookies.txt file (see Step 6) | Only if platforms block the server |
    | `CF_PROXY` | `http://user:pass@host:port` | Only if platforms block the server |
+   | `CF_GROQ_API_KEY` | Groq key (Captions speech-to-text, see Step 4c) | Recommended |
+   | `CF_ANTHROPIC_API_KEY` | Anthropic key (Captions AI translation / highlights) | Recommended |
 
 4. Do **not** generate a public domain for this service.
 
@@ -99,6 +101,26 @@ Nothing extra to install: the AI model files are inside the image (`backend/mode
 | Links | "Paste a link" and the downloader's **Make it vertical** reuse the downloader (same proxy/cookies/RapidAPI fallback). Turn off with `CF_REFRAME_ALLOW_LINKS=false` (e.g. for the AdSense review). |
 
 Test after deploying: open `/landscape-to-portrait-video-converter`, upload a short video, convert with Smart Reframe, open the shot editor and apply one change.
+
+---
+
+## Step 4c: Captions tool (AI captions)
+
+It works with **no extra setup**: speech-to-text then runs on the backend's own CPU (faster-whisper "small" model, baked into the Docker image), translation is English-only and highlights are rule-based. For production quality add two keys to the **backend** variables:
+
+| Name | What it unlocks | Cost |
+|---|---|---|
+| `CF_GROQ_API_KEY` | Speech-to-text in the cloud (Whisper large-v3-turbo): seconds per video, best Urdu/Hindi accuracy, frees the CPU for rendering. Create at console.groq.com → API Keys | about $0.04 per hour of audio (check groq.com/pricing) |
+| `CF_ANTHROPIC_API_KEY` | AI translation into 25 languages, better Roman Urdu spelling, AI highlights + emojis, hook title ideas. Only caption **text** is sent. Create at console.anthropic.com | Pay per use; a few text tokens per video |
+
+| Topic | Detail |
+|---|---|
+| CPU / RAM | Burning captions in is FFmpeg work (about real-time or faster for 1080p). Without a Groq key, the local speech model also uses the CPU (~1 GB RAM for "small"). 4 vCPU / 4 GB as for Reframe is fine; raise `CF_CAPTIONS_WORKERS` with more CPU. |
+| Image size | The local model adds ~480 MB. If you use Groq, you can build without it: set the build variable `WHISPER_PRELOAD` to empty (Railway → Variables, available at build time); it's then downloaded only if ever needed. |
+| Limits | 60 min per video, 30 new caption projects per visitor per day, 60 AI actions per day, 40 exports per hour (all `CF_CAPTIONS_*` in `backend/.env.example`). |
+| Privacy | The privacy page already describes Groq (audio) and Anthropic (caption text). If you don't set those keys, nothing leaves your server. |
+
+Test after deploying: open `/auto-caption-generator`, upload a short talking video, press **Generate captions**, edit a word, pick a style, open **Boost → Auto-highlight**, then **Export video** and download the MP4 and SRT. Then try `/roman-urdu-caption-generator` with an Urdu clip.
 
 ---
 
@@ -174,6 +196,7 @@ Other options (no API cost, more upkeep):
 - [ ] YouTube, TikTok and Instagram tested from the Railway server (cookies/proxy added if needed)
 - [ ] Decide on YouTube before applying for AdSense (`CF_ENABLE_YOUTUBE=false`, or a separate domain; see proposal §6)
 - [ ] yt-dlp updated within the last week
+- [ ] `CF_GROQ_API_KEY` and `CF_ANTHROPIC_API_KEY` set on the backend (Captions), and one caption export tested on Railway
 
 ## Sources
 

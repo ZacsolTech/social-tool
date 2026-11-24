@@ -21,11 +21,23 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project && rm -rf /tmp/uv-cache
 COPY app ./app
 COPY models ./models
+COPY fonts ./fonts
 COPY blocklist.txt ./
 
 ENV PATH="/app/.venv/bin:$PATH"
-# Fail the build (not the first visitor) if an AI model file is missing or damaged.
-RUN python -c "from app.reframe import models; [models.path(k) for k in models.MODELS]"
+# Fail the build (not the first visitor) if an AI model file or a caption font is missing or damaged.
+RUN python -c "from app.reframe import models; [models.path(k) for k in models.MODELS]" \
+ && python -c "from app.captions import fonts; r = fonts.registry(); assert len(r) >= 20 and r['nastaliq'].family == 'Noto Nastaliq Urdu', r"
+
+# Captions: the local speech-to-text model (used when CF_GROQ_API_KEY isn't set, or Groq fails).
+# Baked into the image so the first visitor doesn't wait for a download. Build with
+# --build-arg WHISPER_PRELOAD= to skip it (smaller image; it then downloads on first use).
+ARG WHISPER_PRELOAD=small
+RUN if [ -n "$WHISPER_PRELOAD" ]; then \
+      python -c "from faster_whisper.utils import download_model; download_model('$WHISPER_PRELOAD', cache_dir='/app/whisper-models')" \
+      && rm -rf /root/.cache; \
+    fi
+ENV CF_LOCAL_WHISPER_MODEL=${WHISPER_PRELOAD:-small}
 EXPOSE 8000
 
 # "::" for Railway private networking. $PORT is set by Railway. asyncio binds "::" as IPv6-only,
