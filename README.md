@@ -1,9 +1,11 @@
-# Klyprima: Social Video Downloader + Reframe (landscape → portrait) + Captions
+# Klyprima: Social Video Downloader + Reframe (landscape → portrait) + Captions + AI Clips
 
 1. **Downloader**: paste a YouTube / TikTok / Instagram / Facebook / X / Reddit / Pinterest / Dailymotion / Twitch link → get HD MP4 (no watermark), MP3, or the cover image.
 2. **Reframe**: upload a video or paste a link → get 9:16 / 4:5 / 1:1 versions. An AI "Auto Director" follows the speaker, switches between people, uses split screen, stacks a facecam over gameplay, and keeps slides whole. Or Blur Fill / Crop / Fit + Colour. Spec: `landscape-to-portrait-proposal.md`.
 
 3. **Captions**: upload a video or paste a link → AI captions with word-level timing in 40+ languages (Urdu in Nastaliq, Roman Urdu, Hindi, Hinglish, Arabic right-to-left) → edit, style (14 presets, 9 animations), add highlights, emojis, a hook title, a progress bar and a logo, translate or show two languages, cut "um"s and pauses → burned-in MP4, SRT, VTT, TXT. Spec: `video-tools-proposal.md` and the Caption Generator proposal doc.
+
+4. **AI Clips**: upload a long video (up to 90 min) or paste a link → AI listens, picks the best moments (hook, flow, value, shareability → virality score), cuts them on sentence edges, reframes to 9:16 / 4:5 / 1:1 with Smart Reframe, burns in animated captions and a hook title → MP4s, SRTs, titles, post text and hashtags, one by one or as a ZIP. Every clip can be trimmed, restyled and re-made on its own.
 
 ## Stack (Nov 2026)
 
@@ -134,3 +136,18 @@ Backend health check: `/api/health`. Keep 1 replica (link cache and Reframe jobs
  #   s o c i a l - t o o l 
  
  
+## AI Clips tool (`backend/app/clips/`, `web/src/components/clips/`)
+
+| Stage | File | What happens |
+|---|---|---|
+| Source | `api.py`, `jobs.py` | Upload (shared chunked uploads) or a downloader link ("Find viral clips" on long videos). Optional start/end to search only part of a long video |
+| Listen | `jobs.py` | The caption tool's speech-to-text chain (Groq → Cloudflare → local Whisper), word timings, Roman Urdu / Hinglish |
+| Find | `finder.py` | Transcript lines with times → text AI (Claude, or Groq's free model in windows that fit its token limit) returns ranges + title, hook, post text, hashtags and four scores. Offline scorer (hook phrases, questions, numbers, pacing, sentence edges, emotion) when there's no key or the AI fails, and to top up. Then every clip is refined: fitted to the length on sentence edges, padded without cutting a word, no overlaps. Only the chosen clips' words are AI-proofread |
+| Render | `render.py` | Step 1, the frame: Smart Reframe (analyze + plan + render) or Blur / Fit, or a plain cut for Original. Step 2, the words: the caption tool's ASS + libass burn-in with the hook, keywords, emojis, optional filler/silence cuts. Step 1 is kept, so caption-only edits take seconds. Best clip first; each is downloadable as soon as it's ready |
+| Edit | `jobs.py` | Per clip: trim (snapped to word edges), hook, title, post text, hashtags, shape, framing, caption style. Search again with another length / count / topic without listening again. "Edit captions word by word" opens the clip in the caption editor with its words |
+
+API: `GET /api/clips/config`, `POST /api/clips/jobs`, `GET /api/clips/jobs/{id}`, `POST …/find`, `PATCH …/clips/{clip}`, `DELETE …/{id}`, `GET …/clips/{clip}/file|thumb|srt`, `GET …/zip`, `GET …/transcript`, `GET …/source`. Captions accept `source: {type: "clip", id, clip}`.
+
+Pages: `/ai-clip-generator` plus 5 SEO landing pages (`web/src/lib/clipTools.ts`).
+
+Tests: `tests/test_clips_unit.py` (finder, refinement, AI parsing/windows/fallback, snapping), `tests/test_clips_api.py` (system tests through the API with real FFmpeg/Reframe rendering), `tests/e2e/test_clips_browser.py` (real site + API + speech-to-text; `KLY_E2E_URL=...`), `web/src/lib/clipsCore.test.ts` (`npm test`).

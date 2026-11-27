@@ -2,22 +2,24 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { CaptionLanding } from "@/components/captions/CaptionLanding";
+import { ClipLanding } from "@/components/clips/ClipLanding";
 import { JsonLd } from "@/components/JsonLd";
 import { ToolLanding } from "@/components/reframe/ToolLanding";
 import { ComingSoon, FaqSection, Features, Hero, HowItWorks, PlatformStrip, Tips, faqJsonLd } from "@/components/sections";
 import { CAPTION_PAGES, captionPageBySlug } from "@/lib/captionTools";
+import { CLIP_PAGES, clipPageBySlug } from "@/lib/clipTools";
 import { CONTENT } from "@/lib/content";
 import { PLATFORMS, bySlug } from "@/lib/platforms";
 import { SITE } from "@/lib/site";
 import { TOOL_PAGES, toolBySlug } from "@/lib/tools";
 
 export function generateStaticParams() {
-  return [...PLATFORMS.map((p) => ({ slug: p.slug })), ...TOOL_PAGES.map((t) => ({ slug: t.slug })), ...CAPTION_PAGES.map((t) => ({ slug: t.slug }))];
+  return [...PLATFORMS.map((p) => ({ slug: p.slug })), ...TOOL_PAGES.map((t) => ({ slug: t.slug })), ...CAPTION_PAGES.map((t) => ({ slug: t.slug })), ...CLIP_PAGES.map((t) => ({ slug: t.slug }))];
 }
 
 export async function generateMetadata({ params }: PageProps<"/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const tool = toolBySlug(slug) ?? captionPageBySlug(slug);
+  const tool = toolBySlug(slug) ?? captionPageBySlug(slug) ?? clipPageBySlug(slug);
   if (tool) {
     return {
       title: { absolute: `${tool.title} | ${SITE.name}` },
@@ -53,6 +55,8 @@ async function SlugContent({ params }: { params: PageProps<"/[slug]">["params"] 
   if (tool) return <ToolLanding page={tool} />;
   const captions = captionPageBySlug(slug);
   if (captions) return <CaptionLanding page={captions} />;
+  const clips = clipPageBySlug(slug);
+  if (clips) return <ClipLanding page={clips} />;
 
   const p = bySlug(slug);
   if (!p) notFound();

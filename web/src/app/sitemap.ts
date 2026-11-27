@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { CAPTION_PAGES } from "@/lib/captionTools";
+import { CLIP_PAGES } from "@/lib/clipTools";
 import { PLATFORMS } from "@/lib/platforms";
 import { SITE } from "@/lib/site";
 import { TOOL_PAGES } from "@/lib/tools";
@@ -7,6 +8,7 @@ import { TOOL_PAGES } from "@/lib/tools";
 const UPDATED = new Date("2026-11-05");
 const TOOLS_UPDATED = new Date("2026-11-17");
 const CAPTIONS_UPDATED = new Date("2026-11-24");
+const CLIPS_UPDATED = new Date("2026-11-27");
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
@@ -20,6 +22,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...CAPTION_PAGES.map((t) => ({
       url: `${SITE.url}/${t.slug}`,
       lastModified: CAPTIONS_UPDATED,
+      changeFrequency: "weekly" as const,
+      priority: 0.9,
+    })),
+    ...CLIP_PAGES.map((t) => ({
+      url: `${SITE.url}/${t.slug}`,
+      lastModified: CLIPS_UPDATED,
       changeFrequency: "weekly" as const,
       priority: 0.9,
     })),

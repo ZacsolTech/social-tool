@@ -71,7 +71,8 @@ import { Segmented } from "./ui";
 
 type FileSrc = { kind: "file"; file: File; url: string; progress: number; uploadId: string | null; info: MediaInfo | null; error: string | null };
 type LinkSrc = { kind: "link"; token: string; index: number; title: string; thumbnail: string | null; duration: number | null };
-type ReframeSrc = { kind: "reframe"; job: string; aspect: string; title: string; reuse: string | null };
+/** A Reframe result, or (with `clip`) one clip of an AI Clips project: both arrive with their words. */
+type ReframeSrc = { kind: "reframe"; job: string; aspect: string; title: string; reuse: string | null; clip?: string };
 type Src = FileSrc | LinkSrc | ReframeSrc | null;
 type Tab = "captions" | "style" | "boost";
 
@@ -149,7 +150,7 @@ export function CaptionTool({ preset }: { preset?: CaptionPreset }) {
   useEffect(() => {
     const from = new URLSearchParams(window.location.search).get("from");
     const handoff = readSession<CaptionsHandoff>(CAPTIONS_HANDOFF_KEY);
-    if (handoff && (from === "link" || from === "reframe")) {
+    if (handoff && (from === "link" || from === "reframe" || from === "clip")) {
       writeSession(CAPTIONS_HANDOFF_KEY, null);
       // Next keeps visited pages alive: drop the previous project before starting this one.
       setJob(null);
@@ -163,6 +164,10 @@ export function CaptionTool({ preset }: { preset?: CaptionPreset }) {
       writeSession(CAPTIONS_JOB_KEY, null);
       if (handoff.kind === "link") {
         setSource({ kind: "link", token: handoff.token, index: handoff.index, title: handoff.title, thumbnail: handoff.thumbnail, duration: handoff.duration });
+      } else if (handoff.kind === "clip") {
+        const src: ReframeSrc = { kind: "reframe", job: handoff.job, aspect: handoff.aspect, title: handoff.title, reuse: null, clip: handoff.clip };
+        setSource(src);
+        void start(src, "auto");
       } else {
         const src: ReframeSrc = { kind: "reframe", job: handoff.job, aspect: handoff.aspect, title: handoff.title, reuse: handoff.reuse };
         setSource(src);
@@ -325,7 +330,7 @@ export function CaptionTool({ preset }: { preset?: CaptionPreset }) {
       s = { type: "link", token: src.token, index: src.index };
       title = src.title;
     } else {
-      s = { type: "reframe", id: src.job, aspect: src.aspect };
+      s = src.clip ? { type: "clip", id: src.job, clip: src.clip } : { type: "reframe", id: src.job, aspect: src.aspect };
       title = src.title;
     }
     setSubmitting(true);
@@ -816,7 +821,7 @@ function SourceCard({ source, job, onClear }: { source: Src; job: CJob | null; o
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{title}</p>
         <p className="truncate text-xs text-muted">
-          {[info && `${info.width}×${info.height}`, info?.duration && formatDuration(info.duration), source?.kind === "file" && formatBytes(source.file.size), source?.kind === "reframe" && `Vertical ${source.aspect}`]
+          {[info && `${info.width}×${info.height}`, info?.duration && formatDuration(info.duration), source?.kind === "file" && formatBytes(source.file.size), source?.kind === "reframe" && (source.clip ? "AI clip" : `Vertical ${source.aspect}`)]
             .filter(Boolean)
             .join(" · ") || (source?.kind === "link" ? "From link" : "")}
         </p>
