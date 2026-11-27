@@ -1,19 +1,23 @@
 "use client";
 
 import clsx from "clsx";
-import { ChevronDown, ChevronUp, Combine, Redo2, Replace, Search, SmilePlus, Trash2, Undo2 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Combine, Redo2, Replace, Search, ShieldCheck, SmilePlus, Trash2, TriangleAlert, Undo2 } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import type { CheckReport } from "@/lib/captions";
 import {
   type CLine,
   type CTranscript,
+  confirmLine,
   deleteLine,
   findReplace,
   formatTimecode,
   mergeWithNext,
+  nextToCheck,
   setLineEmoji,
   setWord,
   shiftLine,
   splitLine,
+  toCheckCount,
   withText,
 } from "@/lib/captionsCore";
 
@@ -22,6 +26,7 @@ const EMOJIS = ["🔥", "💰", "😂", "❤️", "🤯", "✅", "❌", "💡", 
 export function TranscriptEditor({
   transcript,
   onChange,
+  report,
   current,
   onSeek,
   rtl,
@@ -34,6 +39,8 @@ export function TranscriptEditor({
 }: {
   transcript: CTranscript;
   onChange: (t: CTranscript) => void;
+  /** What the AI accuracy check did on these captions (shown as a one-line summary). */
+  report?: CheckReport | null;
   current: number;
   onSeek: (t: number) => void;
   rtl: boolean;
@@ -51,6 +58,16 @@ export function TranscriptEditor({
   const [notice, setNotice] = useState<string | null>(null);
   const list = useRef<HTMLDivElement>(null);
   const hasTranslation = transcript.lines.some((l) => l.translation);
+  const toCheck = toCheckCount(transcript);
+
+  function goToCheck() {
+    const i = nextToCheck(transcript, focus ?? current ?? -1);
+    if (i < 0) return;
+    const row = list.current?.querySelector<HTMLElement>(`[data-line="${i}"]`);
+    row?.scrollIntoView({ block: "center", behavior: "smooth" });
+    row?.querySelector("textarea")?.focus({ preventScroll: true });
+    onSeek(transcript.lines[i].start);
+  }
 
   // Keep the line being spoken in view while the video plays (unless the person is typing).
   useEffect(() => {
@@ -83,10 +100,21 @@ export function TranscriptEditor({
         <IconBtn label="Find and replace" onClick={() => setShowFind((v) => !v)} active={showFind}>
           <Search className="size-4" />
         </IconBtn>
+        {toCheck > 0 && (
+          <button
+            type="button"
+            onClick={goToCheck}
+            title="The AI wasn't sure about these lines. Play each one and fix it, or tick it if it's right."
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-500/50 bg-amber-500/10 px-2.5 text-xs font-medium text-amber-700 transition hover:bg-amber-500/20 dark:text-amber-300"
+          >
+            <TriangleAlert className="size-3.5" /> {toCheck} {toCheck === 1 ? "line" : "lines"} to check
+          </button>
+        )}
         <span className="ml-auto text-xs text-subtle">
           {transcript.lines.length} lines · Enter splits a line · Backspace at the start joins it with the one above
         </span>
       </div>
+      {report && report.lines > 0 && <CheckSummary report={report} toCheck={toCheck} />}
       {showFind && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-bg p-2">
           <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find" aria-label="Find" className="min-w-0 flex-1 rounded-lg bg-elev px-2.5 py-1.5 text-sm outline-none ring-accent focus:ring-1" />
@@ -131,6 +159,7 @@ export function TranscriptEditor({
             onShift={(d) => onChange(shiftLine(transcript, i, d, duration))}
             onKeyword={(wi) => onChange(setWord(transcript, i, wi, { keyword: !line.words[wi].keyword }))}
             onEmoji={(e) => onChange(setLineEmoji(transcript, i, e))}
+            onConfirm={() => onChange(confirmLine(transcript, i))}
           />
         ))}
         {!transcript.lines.length && <p className="p-6 text-center text-sm text-muted">No captions. The video may have no speech.</p>}
@@ -167,6 +196,7 @@ const Row = memo(function Row({
   onShift,
   onKeyword,
   onEmoji,
+  onConfirm,
 }: {
   index: number;
   line: CLine;
@@ -188,6 +218,7 @@ const Row = memo(function Row({
   onShift: (d: number) => void;
   onKeyword: (wi: number) => void;
   onEmoji: (e: string | null) => void;
+  onConfirm: () => void;
 }) {
   const [draft, setDraft] = useState(line.text);
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -219,7 +250,7 @@ const Row = memo(function Row({
       data-line={index}
       className={clsx(
         "group rounded-xl border px-2.5 py-2 transition",
-        active ? "border-accent/60 bg-accent-soft/40" : focused ? "border-line-strong bg-bg" : "border-transparent hover:bg-bg",
+        active ? "border-accent/60 bg-accent-soft/40" : focused ? "border-line-strong bg-bg" : line.check ? "border-amber-500/40 bg-amber-500/5" : "border-transparent hover:bg-bg",
       )}
     >
       <div className="flex items-start gap-2">
@@ -262,6 +293,18 @@ const Row = memo(function Row({
           className={clsx("min-w-0 flex-1 resize-none bg-transparent py-0.5 text-[15px] leading-relaxed outline-none", rtl && "text-right")}
         />
         {emoji && <span className="mt-0.5 text-lg leading-none">{emoji}</span>}
+        {line.check && (
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={disabled}
+            title="The AI wasn't sure what was said here. Play it: fix the words, or click if they're right."
+            aria-label={`Line ${index + 1} is right`}
+            className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-500/50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 transition hover:bg-amber-500/15 dark:text-amber-300"
+          >
+            <TriangleAlert className="size-3" /> Check <Check className="size-3" />
+          </button>
+        )}
       </div>
       {showTranslation && (
         <input
@@ -348,5 +391,22 @@ function IconBtn({ label, onClick, disabled, active, children }: { label: string
     >
       {children}
     </button>
+  );
+}
+
+function CheckSummary({ report, toCheck }: { report: CheckReport; toCheck: number }) {
+  const parts: string[] = [];
+  parts.push(report.listens > 1 ? "Heard twice by two AI models" : "Checked by AI");
+  if (report.ai) {
+    const fixed = report.fixed_words + report.added_lines;
+    parts.push(fixed ? `${report.fixed_words} word${report.fixed_words === 1 ? "" : "s"} fixed` : "no fixes needed");
+    if (report.added_lines) parts.push(`${report.added_lines} missed line${report.added_lines === 1 ? "" : "s"} added`);
+  }
+  parts.push(toCheck ? `${toCheck} to check` : "all lines confident");
+  return (
+    <p className="flex items-center gap-1.5 rounded-lg bg-ok/10 px-2.5 py-1.5 text-xs text-muted">
+      <ShieldCheck className="size-3.5 shrink-0 text-ok" />
+      <span>{parts.join(" · ")}</span>
+    </p>
   );
 }

@@ -64,7 +64,7 @@ const COUNTS: { id: string; label: string }[] = [
 function initialOptions(preset?: ClipPreset): FindOptions {
   return {
     length: preset?.length ?? "auto",
-    count: null,
+    count: preset?.count ?? null,
     topic: "",
     look: { ...DEFAULT_LOOK, aspect: preset?.aspect ?? DEFAULT_LOOK.aspect, preset: preset?.style ?? DEFAULT_LOOK.preset },
   };
@@ -276,7 +276,7 @@ export function ClipTool({ preset }: { preset?: ClipPreset }) {
   return (
     <div ref={root} className="scroll-mt-24 space-y-6">
       <div className="mx-auto max-w-3xl space-y-5 rounded-3xl border border-line bg-elev p-4 shadow-card sm:p-6">
-        {!source && !job && <SourcePicker config={config} onFile={startUpload} onLink={(l) => setSource({ kind: "link", link: l })} />}
+        {!source && !job && <SourcePicker config={config} initialTab={preset?.source} onFile={startUpload} onLink={(l) => setSource({ kind: "link", link: l })} />}
         {(source || job) && <SourceCard source={source} job={job} onClear={reset} />}
 
         {error && (
@@ -503,8 +503,18 @@ function Settings({
 
 /* ------------------------------------------------------------------ source */
 
-function SourcePicker({ config, onFile, onLink }: { config: KConfig | null; onFile: (f: File) => void; onLink: (l: ClipsHandoff) => void }) {
-  const [tab, setTab] = useState<"upload" | "link">("upload");
+function SourcePicker({
+  config,
+  initialTab,
+  onFile,
+  onLink,
+}: {
+  config: KConfig | null;
+  initialTab?: "upload" | "link";
+  onFile: (f: File) => void;
+  onLink: (l: ClipsHandoff) => void;
+}) {
+  const [tab, setTab] = useState<"upload" | "link">(initialTab ?? "upload");
   const [over, setOver] = useState(false);
   return (
     <div>

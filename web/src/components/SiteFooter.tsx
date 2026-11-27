@@ -1,60 +1,42 @@
 import Link from "next/link";
-import { CAPTION_PAGES } from "@/lib/captionTools";
-import { PLATFORMS } from "@/lib/platforms";
+import { TOOLS } from "@/lib/catalog";
 import { SITE } from "@/lib/site";
-import { TOOL_PAGES } from "@/lib/tools";
 import { Logo } from "./Logo";
+import { ToolTile } from "./ToolIcon";
 
 export function SiteFooter() {
   return (
     <footer className="mt-24 border-t border-line">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 sm:grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-[1.5fr_repeat(5,1fr)]">
         <div className="max-w-sm">
           <Logo />
           <p className="mt-3 text-sm text-muted">{SITE.tagline}</p>
           <p className="mt-4 text-xs leading-relaxed text-subtle">
             {SITE.name} is not affiliated with YouTube, Google, TikTok, Instagram, Meta, X, Reddit, Pinterest or any other platform. Only
-            download content you own or have permission to use.
+            download or edit content you own or have permission to use.
           </p>
         </div>
+        {TOOLS.map((t) => (
+          <div key={t.id}>
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <ToolTile tool={t} size="sm" />
+              <Link href={t.href} className="transition hover:text-accent">
+                {t.name}
+              </Link>
+            </h2>
+            <ul className="mt-3 space-y-2 text-sm text-muted">
+              {t.pages.map((p) => (
+                <li key={p.href}>
+                  <Link href={p.href} className="transition hover:text-fg">
+                    {p.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
         <div>
-          <h2 className="text-sm font-semibold">Downloaders</h2>
-          <ul className="mt-3 space-y-2 text-sm text-muted">
-            {PLATFORMS.map((p) => (
-              <li key={p.id}>
-                <Link href={`/${p.slug}`} className="transition hover:text-fg">
-                  {p.name} downloader
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold">Caption tools</h2>
-          <ul className="mt-3 space-y-2 text-sm text-muted">
-            {CAPTION_PAGES.map((t) => (
-              <li key={t.slug}>
-                <Link href={`/${t.slug}`} className="transition hover:text-fg">
-                  {t.nav}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold">Reframe tools</h2>
-          <ul className="mt-3 space-y-2 text-sm text-muted">
-            {TOOL_PAGES.map((t) => (
-              <li key={t.slug}>
-                <Link href={`/${t.slug}`} className="transition hover:text-fg">
-                  {t.nav}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold">Company</h2>
+          <h2 className="flex h-8 items-center text-sm font-semibold">Company</h2>
           <ul className="mt-3 space-y-2 text-sm text-muted">
             {[
               ["/about", "About"],
@@ -74,7 +56,8 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-line">
         <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-subtle sm:px-6">
-          © {SITE.year} {SITE.name}. Downloads stream straight to you. Reframe and Captions uploads are deleted automatically within 24 hours.
+          © {SITE.year} {SITE.name}. Free video tools for creators. Downloads stream straight to you; uploaded videos are deleted
+          automatically within 24 hours.
         </p>
       </div>
     </footer>

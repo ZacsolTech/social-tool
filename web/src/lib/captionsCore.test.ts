@@ -7,12 +7,14 @@ import {
   type CWord,
   activeWord,
   buildPages,
+  confirmLine,
   deleteLine,
   displayTranscript,
   findReplace,
   isFiller,
   lineIndexAt,
   mergeWithNext,
+  nextToCheck,
   pageAt,
   pages,
   refresh,
@@ -21,6 +23,7 @@ import {
   shiftLine,
   splitLine,
   splitText,
+  toCheckCount,
   withText,
 } from "./captionsCore.ts";
 
@@ -129,5 +132,33 @@ describe("languages", () => {
   it("detects filler words", () => {
     for (const f of ["um", "Uhh,", "hmm...", "ہمم"]) assert.ok(isFiller(f), f);
     for (const w of ["umbrella", "hum", "the"]) assert.ok(!isFiller(w), w);
+  });
+});
+
+describe("accuracy-check flags", () => {
+  const flagged = (): CTranscript => {
+    const t = transcript(["one two", 0], ["three four", 2], ["five six", 4], ["seven eight", 6]);
+    t.lines[1].check = true;
+    t.lines[3].check = true;
+    return t;
+  };
+
+  it("counts and walks the flagged lines, wrapping around", () => {
+    const t = flagged();
+    assert.equal(toCheckCount(t), 2);
+    assert.equal(nextToCheck(t, -1), 1);
+    assert.equal(nextToCheck(t, 1), 3);
+    assert.equal(nextToCheck(t, 3), 1);
+    assert.equal(nextToCheck(transcript(["a b", 0]), 0), -1);
+  });
+
+  it("is cleared when the line is retyped or confirmed, kept otherwise", () => {
+    const t = flagged();
+    assert.equal(withText(t.lines[1], "three for", "en").check, false);
+    const c = confirmLine(t, 3);
+    assert.equal(c.lines[3].check, false);
+    assert.equal(c.lines[1].check, true);
+    assert.equal(t.lines[3].check, true); // not mutated
+    assert.equal(shiftLine(t, 1, 0.1).lines[1].check, true);
   });
 });

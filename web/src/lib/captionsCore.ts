@@ -4,7 +4,8 @@
  */
 
 export type CWord = { text: string; start: number; end: number; keyword?: boolean; emoji?: string | null };
-export type CLine = { id: string; start: number; end: number; text: string; words: CWord[]; translation?: string | null };
+/** `check`: the AI accuracy check wasn't sure about this line; it's cleared once the person edits or confirms it. */
+export type CLine = { id: string; start: number; end: number; text: string; words: CWord[]; translation?: string | null; check?: boolean };
 export type CTranscript = {
   language: string;
   source: string;
@@ -93,8 +94,27 @@ const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
 export function withText(line: CLine, text: string, lang: string): CLine {
   const words = retime(line.words, splitText(text, lang), line.start, line.end);
-  return refresh({ ...line, words }, lang);
+  return refresh({ ...line, words, check: false }, lang);
 }
+
+/** The person listened and the line is right: drop the "check this" flag. */
+export function confirmLine(t: CTranscript, li: number): CTranscript {
+  const lines = [...t.lines];
+  lines[li] = { ...lines[li], check: false };
+  return { ...t, lines };
+}
+
+/** Index of the next line flagged by the accuracy check after `from` (wrapping around), -1 if none. */
+export function nextToCheck(t: CTranscript, from: number): number {
+  const n = t.lines.length;
+  for (let k = 1; k <= n; k++) {
+    const i = (((from + k) % n) + n) % n;
+    if (t.lines[i].check) return i;
+  }
+  return -1;
+}
+
+export const toCheckCount = (t: CTranscript) => t.lines.reduce((a, l) => a + (l.check ? 1 : 0), 0);
 
 export function refresh(line: CLine, lang: string): CLine {
   const words = line.words;

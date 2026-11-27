@@ -201,11 +201,55 @@ def test_urdu_uses_the_full_model_and_auto_detect_listens_again(keys, monkeypatc
     assert models == [("whisper-large-v3-turbo", None), ("whisper-large-v3", "ur")] and res.language == "ur"
 
 
-def test_proofread_keeps_word_count(keys, monkeypatch):
+def test_ai_judge_reads_answers_and_skips_a_failed_batch(keys, monkeypatch):
+    calls = []
+
     def post(url, **kw):
         lines = json.loads(kw["json"]["messages"][1]["content"])["lines"]
-        out = [{"id": x["id"], "words": [w.replace("كتاب", "کتاب") for w in x["words"]]} for x in lines]
+        calls.append(lines)
+        if len(calls) == 2:
+            return Resp(500, {}, text="boom")               # one batch fails: the others still count
+        out = [{"id": x["id"], "text": x.get("alt") or x["heard"], "sure": x["id"] != "a"} for x in lines]
         return Resp(200, {"choices": [{"message": {"content": json.dumps({"lines": out})}}]})
     monkeypatch.setattr(llm.httpx, "post", post)
-    res = llm.proofread([("a", ["یہ", "كتاب"])], "Urdu", "Klyprima")
-    assert res == {"a": ["یہ", "کتاب"]}
+    items = [{"id": f"x{i}", "heard": "w", "unsure": False, "before": "", "after": ""} for i in range(40)]
+    items[0] = {"id": "a", "heard": "یہ كتاب", "alt": "یہ کتاب", "unsure": True, "before": "", "after": ""}
+    res = llm.verify(items, "Urdu", "Klyprima", "Title")
+    assert len(calls) == 2 and len(calls[0]) == 20             # Groq free tier: small batches
+    assert res["a"] == ("یہ کتاب", False) and res["x1"] == ("w", True) and "x25" not in res
+    monkeypatch.setattr(llm.httpx, "post", lambda url, **kw: Resp(500, {}, text="down"))
+    with pytest.raises(llm.LlmError):
+        llm.verify(items[:3], "Urdu", None, None)
+
+
+def test_word_confidence_comes_from_the_segment(keys, monkeypatch):
+    body = {**WHISPER, "words": [w for s in WHISPER["segments"] for w in s["words"]]}
+    monkeypatch.setattr(stt.httpx, "post", lambda url, **kw: Resp(200, body))
+    res = stt.transcribe(keys, "ur")
+    assert res.model == "whisper-large-v3"
+    assert all(abs(w.prob - __import__("math").exp(-0.2)) < 1e-9 for w in res.words)
+
+
+def test_second_listen_uses_the_other_model_then_cloudflare(keys, monkeypatch):
+    models = []
+    body = {**WHISPER, "words": [w for s in WHISPER["segments"] for w in s["words"]]}
+
+    def post(url, **kw):
+        if "groq" in url:
+            models.append(kw["data"]["model"])
+            if kw["data"]["model"] == "whisper-large-v3-turbo" and len(models) > 1:
+                return Resp(429, {}, {"retry-after": "60"})
+            return Resp(200, body)
+        models.append("cloudflare")
+        return Resp(200, {"result": {"segments": WHISPER["segments"], "transcription_info": {"language": "ur"}}})
+    monkeypatch.setattr(stt.httpx, "post", post)
+    first = stt.SttResult("en", [], "groq", [], "whisper-large-v3-turbo")
+    res = stt.second_listen(keys, "en", None, first)
+    assert models == ["whisper-large-v3"] and res.model == "whisper-large-v3"
+    models.clear()
+    first = stt.SttResult("ur", [], "groq", [], "whisper-large-v3")
+    models.append("x")
+    res = stt.second_listen(keys, "ur", None, first)          # turbo is over its quota -> Cloudflare
+    assert models == ["x", "whisper-large-v3-turbo", "cloudflare"] and res.provider == "cloudflare"
+    assert "groq" not in stt._cooldown                          # the main chain isn't slowed down by it
+    assert stt.second_listen(keys, "en", None, stt.SttResult("en", [], "fake")) is None

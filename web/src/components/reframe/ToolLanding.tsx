@@ -1,63 +1,24 @@
 import { Columns2, Crosshair, Gamepad2, ScanFace, ShieldCheck, Sparkles, Type, ZoomIn } from "lucide-react";
-import Link from "next/link";
-import { JsonLd } from "@/components/JsonLd";
-import { FaqSection, HowItWorks, SectionHeading, Tips, faqJsonLd } from "@/components/sections";
-import { SITE } from "@/lib/site";
-import { TOOL_PAGES, type ToolPage } from "@/lib/tools";
+import { ClosingCta } from "@/components/marketing";
+import { FaqSection, HowItWorks, PageLinks, SectionHeading, Tips, ToolHero, ToolJsonLd, ToolsShowcase } from "@/components/sections";
+import type { ToolPage } from "@/lib/tools";
 import { ReframeTool } from "./ReframeTool";
 
 export function ToolLanding({ page }: { page: ToolPage }) {
-  const [before, after] = page.h1.split(page.highlight);
   return (
     <>
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "WebApplication",
-          name: `${SITE.name} Reframe`,
-          url: `${SITE.url}/${page.slug}`,
-          applicationCategory: "MultimediaApplication",
-          operatingSystem: "Any",
-          description: page.description,
-          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-        }}
-      />
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "HowTo",
-          name: page.h1,
-          step: page.howTo.map((text, i) => ({ "@type": "HowToStep", position: i + 1, text })),
-        }}
-      />
-      <JsonLd data={faqJsonLd(page.faqs)} />
-
-      <section className="relative overflow-hidden">
-        <div aria-hidden className="aurora pointer-events-none absolute inset-0" />
-        <div aria-hidden className="grid-dots pointer-events-none absolute inset-0 opacity-60" />
-        <div className="relative mx-auto max-w-6xl px-4 pb-8 pt-10 sm:px-6 sm:pt-16">
-          <div className="mx-auto max-w-3xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-line bg-elev/80 px-3 py-1 text-xs font-medium text-muted backdrop-blur">
-              <Sparkles className="size-3.5 text-accent" /> {SITE.name} Reframe · Free · No watermark · No sign-up
-            </span>
-            <h1 className="mt-5 text-balance text-4xl font-semibold leading-[1.05] tracking-[-0.035em] sm:text-6xl">
-              {before}
-              {after !== undefined && <span className="font-display text-[1.08em] font-normal italic tracking-[-0.01em] text-accent">{page.highlight}</span>}
-              {after}
-            </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-pretty text-base text-muted sm:text-lg">{page.intro}</p>
-          </div>
-          <div className="mt-8">
-            <ReframeTool preset={page.preset} />
-          </div>
-        </div>
-      </section>
+      <ToolJsonLd name="Reframe" slug={page.slug} description={page.description} howTo={page.howTo} faqs={page.faqs} h1={page.h1} />
+      <ToolHero tool="reframe" slug={page.slug} label={page.nav} h1={page.h1} highlight={page.highlight} intro={page.intro}>
+        <ReframeTool preset={page.preset} />
+      </ToolHero>
 
       <HowItWorks steps={page.howTo} title="Vertical video in three steps" />
       <Tips tips={page.tips} />
       <Layouts />
       <FaqSection faqs={page.faqs} title="Reframe FAQ" />
-      <ToolLinks current={page.slug} />
+      <PageLinks tool="reframe" current={page.slug} />
+      <ToolsShowcase exclude="reframe" eyebrow="More tools" title="Make the vertical video even better" />
+      <ClosingCta href="#tool" label="Make it vertical" title="One upload. Every vertical size, speaker in frame." body="9:16, 4:5 and 1:1 from a single analysis, with smart layouts for every shot. Free, no watermark, no sign-up." />
     </>
   );
 }
@@ -85,20 +46,6 @@ function Layouts() {
             <h3 className="mt-4 font-semibold tracking-tight">{it.title}</h3>
             <p className="mt-1 text-sm leading-relaxed text-muted">{it.body}</p>
           </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ToolLinks({ current }: { current: string }) {
-  return (
-    <section aria-label="More reframe tools" className="mx-auto max-w-5xl px-4 pt-16 sm:px-6">
-      <div className="flex flex-wrap justify-center gap-2">
-        {TOOL_PAGES.filter((t) => t.slug !== current).map((t) => (
-          <Link key={t.slug} href={`/${t.slug}`} className="rounded-full border border-line bg-elev px-3.5 py-1.5 text-sm transition hover:border-line-strong">
-            {t.nav}
-          </Link>
         ))}
       </div>
     </section>

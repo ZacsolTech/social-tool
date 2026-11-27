@@ -31,7 +31,7 @@ const common = (name: string): Faq[] => [
 
 export const CONTENT: Record<PlatformId, PlatformContent> = {
   youtube: {
-    title: "YouTube Video Downloader - Download YouTube Videos & Shorts in HD (MP4, MP3)",
+    title: "YouTube Video Downloader: HD, 4K & MP3, Free",
     h1: "YouTube video downloader, up to 4K",
     highlight: "up to 4K",
     description:
@@ -58,7 +58,7 @@ export const CONTENT: Record<PlatformId, PlatformContent> = {
     ],
   },
   tiktok: {
-    title: "TikTok Downloader - Save TikTok Videos Without Watermark (HD MP4 & MP3)",
+    title: "TikTok Downloader Without Watermark (HD, MP3)",
     h1: "TikTok video downloader without watermark",
     highlight: "without watermark",
     description:
@@ -82,7 +82,7 @@ export const CONTENT: Record<PlatformId, PlatformContent> = {
     ],
   },
   instagram: {
-    title: "Instagram Reels Downloader - Download Reels, Videos & Carousels in HD",
+    title: "Instagram Reels Downloader: HD, Free, No Login",
     h1: "Instagram Reels downloader in full HD",
     highlight: "full HD",
     description:
@@ -106,7 +106,7 @@ export const CONTENT: Record<PlatformId, PlatformContent> = {
     ],
   },
   facebook: {
-    title: "Facebook Video Downloader - Save Facebook Videos & Reels in HD",
+    title: "Facebook Video Downloader: HD Videos & Reels",
     h1: "Facebook video downloader in HD",
     highlight: "in HD",
     description:
@@ -129,7 +129,7 @@ export const CONTENT: Record<PlatformId, PlatformContent> = {
     ],
   },
   x: {
-    title: "Twitter (X) Video Downloader - Download X Videos & GIFs in HD",
+    title: "Twitter (X) Video Downloader: HD Videos & GIFs",
     h1: "X / Twitter video downloader",
     highlight: "video downloader",
     description:
@@ -152,7 +152,7 @@ export const CONTENT: Record<PlatformId, PlatformContent> = {
     ],
   },
   reddit: {
-    title: "Reddit Video Downloader - Download Reddit Videos With Sound",
+    title: "Reddit Video Downloader With Sound (HD, Free)",
     h1: "Reddit video downloader with sound",
     highlight: "with sound",
     description:
@@ -175,7 +175,7 @@ export const CONTENT: Record<PlatformId, PlatformContent> = {
     ],
   },
   pinterest: {
-    title: "Pinterest Video Downloader - Save Pinterest Videos in HD",
+    title: "Pinterest Video Downloader: HD MP4, Free",
     h1: "Pinterest video downloader in HD",
     highlight: "in HD",
     description:
@@ -198,7 +198,7 @@ export const CONTENT: Record<PlatformId, PlatformContent> = {
     ],
   },
   dailymotion: {
-    title: "Dailymotion Video Downloader - Download Dailymotion Videos in HD",
+    title: "Dailymotion Video Downloader: HD MP4, Free",
     h1: "Dailymotion video downloader",
     highlight: "downloader",
     description:
@@ -213,11 +213,11 @@ export const CONTENT: Record<PlatformId, PlatformContent> = {
     faqs: common("Dailymotion"),
   },
   twitch: {
-    title: "Twitch Clip Downloader - Download Twitch Clips in HD",
+    title: "Twitch Clip Downloader: Save Clips in HD, Free",
     h1: "Twitch clip downloader",
     highlight: "clip downloader",
     description:
-      "Download Twitch clips in HD as MP4. Paste a clip link and save it in seconds. Free, no sign-up, no pop-ups.",
+      "Download Twitch clips in HD as MP4 in one paste. Free, no sign-up, no pop-ups. Then turn them into TikToks and Shorts with AI captions and 9:16 reframe.",
     intro: "Save your own Twitch clips to repost as Shorts, Reels or TikToks. Clips and short VODs are supported.",
     howTo: ["Open the clip and copy its link.", "Paste it above.", "Choose a quality and download."],
     tips: [
@@ -231,7 +231,47 @@ export const CONTENT: Record<PlatformId, PlatformContent> = {
 
 export const HOME_FAQS: Faq[] = [
   {
-    q: `Which sites does ${SITE.name} support?`,
+    q: `What does ${SITE.name} AI Clips do?`,
+    a: "It turns one long video (a podcast, interview, stream, lecture or YouTube video) into several ready-to-post Shorts. Upload the file or paste a link: you get vertical clips with the speaker in frame, word-by-word captions, a hook title, post text and hashtags, each with a virality score. Alongside it are free tools for captions, 9:16 reframing and downloading.",
+  },
+  {
+    q: "Is it really free, with no watermark?",
+    a: "Yes. Every tool is free, needs no account, and we never put our logo on your videos. Fair-use limits (video length and uses per day) keep it fast for everyone.",
+  },
+  {
+    q: "How does AI Clips choose the best moments?",
+    a: "It writes down every word with its timing, then reads the transcript like a short-form editor: a strong hook, a moment that makes sense on its own, and a payoff. Each clip gets a virality score (hook, flow, value, shareability) with the reason, starts and ends on full sentences, and comes reframed to 9:16 with captions.",
+  },
+  {
+    q: "How accurate are the captions?",
+    a: "Very. Two different AI speech models listen to your video. Where they agree, the words are kept. Where they differ, an AI judge compares both versions with the context and your names, and fixes the line. Anything it still isn't sure about is marked \"Check\" in the editor, so you only listen to those lines.",
+  },
+  {
+    q: "Does it support Urdu, Roman Urdu and Hindi?",
+    a: "Yes, as first-class languages: Urdu in proper Nastaliq, Roman Urdu the way people type it, Hindi, Hinglish and Arabic right-to-left, plus 40+ other languages. AI Clips writes titles and hooks in your own language too.",
+  },
+  {
+    q: "Which sites can I download from?",
+    a: "YouTube (videos and Shorts), TikTok, Instagram, Facebook, X (Twitter), Reddit, Pinterest, Dailymotion and Twitch. Paste any public post link and we detect the platform automatically. MP3 and cover images are there too.",
+  },
+  {
+    q: "How do I use it on my phone?",
+    a: `Open ${SITE.name} in your browser and tap Install (or Add to Home Screen). Then, in TikTok or Instagram, tap Share and pick ${SITE.name}. The link opens here and starts automatically. All the AI tools work on phones as well.`,
+  },
+  {
+    q: "What happens to my videos?",
+    a: "Downloads stream straight to your device and are never saved on our servers. Videos you upload to AI Clips, Captions or Reframe are processed privately, never shared or used to train AI, and deleted automatically within 24 hours.",
+  },
+  {
+    q: "Is downloading and reposting videos legal?",
+    a: "Downloading for personal use, or downloading and editing content you own or have permission to use, is generally fine. Re-uploading someone else's work without permission is not. Please respect creators' rights.",
+  },
+];
+
+/** The general downloader page (/video-downloader): all platforms, the old home page's content. */
+export const DOWNLOADER_FAQS: Faq[] = [
+  {
+    q: `Which sites does the ${SITE.name} downloader support?`,
     a: "YouTube (videos and Shorts), TikTok, Instagram, Facebook, X (Twitter), Reddit, Pinterest, Dailymotion and Twitch. Paste any public post link and we detect the platform automatically.",
   },
   {
@@ -245,6 +285,10 @@ export const HOME_FAQS: Faq[] = [
   {
     q: "Can I get just the audio?",
     a: "Yes. Every video can be saved as a 192 kbps MP3, and M4A in original quality when the platform provides it.",
+  },
+  {
+    q: "Can I turn the video into Shorts?",
+    a: "Yes. After you paste a link, the result has buttons for the next step: AI Clips finds the best moments of a long video and makes captioned vertical clips, Reframe makes it 9:16, and Captions adds animated captions.",
   },
   {
     q: "Do you store my videos or links?",

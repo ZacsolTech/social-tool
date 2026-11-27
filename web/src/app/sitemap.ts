@@ -12,7 +12,8 @@ const CLIPS_UPDATED = new Date("2026-11-27");
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
-    { url: SITE.url, lastModified: UPDATED, changeFrequency: "weekly", priority: 1 },
+    { url: SITE.url, lastModified: new Date("2026-11-28"), changeFrequency: "weekly", priority: 1 },
+    { url: `${SITE.url}/video-downloader`, lastModified: new Date("2026-11-28"), changeFrequency: "weekly", priority: 0.9 },
     ...TOOL_PAGES.map((t) => ({
       url: `${SITE.url}/${t.slug}`,
       lastModified: TOOLS_UPDATED,

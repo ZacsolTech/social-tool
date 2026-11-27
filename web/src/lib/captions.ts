@@ -26,6 +26,21 @@ export type CConfig = {
 export type CJobState = "queued" | "importing" | "transcribing" | "processing" | "rendering" | "ready" | "error" | "cancelled";
 export const ACTIVE: CJobState[] = ["queued", "importing", "transcribing", "processing", "rendering"];
 
+/** What the AI accuracy check did (second listen + AI judge), see backend captions/verify.py. */
+export type CheckReport = {
+  listens: number;
+  second: string | null;
+  ai: boolean;
+  lines: number;
+  agreed: number;
+  checked: number;
+  fixed_lines: number;
+  fixed_words: number;
+  added_lines: number;
+  removed_lines: number;
+  flagged: number;
+};
+
 export type CJob = {
   id: string;
   state: CJobState;
@@ -43,6 +58,7 @@ export type CJob = {
   info: MediaInfo | null;
   provider: string | null;
   hooks: string[];
+  check: CheckReport | null;
   transcript_rev: number | null;
   has_logo: boolean;
   output: { url: string; size: number; name: string; duration: number; version: number } | null;
@@ -136,7 +152,7 @@ export const getCaptionJob = (id: string, sinceRev?: number | null) =>
 const transcriptBody = (t: CTranscript) => ({
   rev: t.rev,
   translation_lang: t.translation_lang,
-  lines: t.lines.map((l) => ({ id: l.id, translation: l.translation ?? null, words: l.words })),
+  lines: t.lines.map((l) => ({ id: l.id, translation: l.translation ?? null, words: l.words, check: !!l.check })),
 });
 
 export const saveTranscript = (id: string, t: CTranscript) => call<CJob>(`/api/captions/jobs/${id}/transcript`, json("PUT", transcriptBody(t)));

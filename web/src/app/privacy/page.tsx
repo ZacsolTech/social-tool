@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalPage";
 import { SITE } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Privacy Policy", description: `How ${SITE.name} handles your data.`, alternates: { canonical: "/privacy" } };
+export const metadata: Metadata = { title: "Privacy Policy", description: `How ${SITE.name} handles your data: downloads are never stored, uploads are deleted within 24 hours and never used to train AI.`, alternates: { canonical: "/privacy" } };
 
 export default function Page() {
   return (
-    <LegalPage title="Privacy Policy" updated="November 24, 2026">
+    <LegalPage title="Privacy Policy" updated="November 27, 2026">
       <p>This policy explains what {SITE.name} collects when you use the site and what we do with it. The short version: as little as possible.</p>
       <h2>Links and files</h2>
       <p>
@@ -20,14 +20,18 @@ export default function Page() {
         shared, listed or used to train AI, and are <strong>deleted automatically within 24 hours</strong>. The AI that frames your video
         (face, object, text and speech detection) runs on our own servers. Your video is not sent to any AI company.
       </p>
-      <h2>Videos you upload (Captions)</h2>
+      <h2>Videos you upload (Captions and AI Clips)</h2>
       <p>
         To write captions, the <strong>sound</strong> of your video is turned into text by speech recognition. Depending on our
-        setup this runs on our own servers or at our speech-to-text provider (Groq), which processes the audio only to return the
-        text. If you use AI translation, Roman Urdu, highlights or hook ideas, only the <strong>caption text</strong> (never the video
-        or audio) is sent to our AI provider (Anthropic). Our providers process this data to deliver the service to us and don&apos;t
-        use it to train their models. Your video, audio, captions and finished videos are stored privately and are
-        <strong> deleted automatically within 24 hours</strong>.
+        setup this runs on our own servers or at our speech-to-text providers (Groq, Cloudflare), which process the audio only to
+        return the text. To make captions more accurate, the sound may be transcribed twice, by two different models.
+      </p>
+      <p>
+        The <strong>caption text</strong> (never the video or audio) is sent to our AI text provider (Anthropic or Groq) to check
+        and correct the captions, to pick the best moments for AI Clips and write their titles and hashtags, and when you use AI
+        translation, Roman Urdu, highlights or hook ideas. Our providers process this data to deliver the service to us and
+        don&apos;t use it to train their models. Your video, audio, captions, clips and finished videos are stored privately and
+        are <strong> deleted automatically within 24 hours</strong>.
       </p>
       <p>
         Styles you save with &quot;Save as my style&quot; and your last-used style are kept only in your browser (local storage).

@@ -4,8 +4,9 @@ import { Suspense } from "react";
 import { CaptionLanding } from "@/components/captions/CaptionLanding";
 import { ClipLanding } from "@/components/clips/ClipLanding";
 import { JsonLd } from "@/components/JsonLd";
+import { ClosingCta } from "@/components/marketing";
 import { ToolLanding } from "@/components/reframe/ToolLanding";
-import { ComingSoon, FaqSection, Features, Hero, HowItWorks, PlatformStrip, Tips, faqJsonLd } from "@/components/sections";
+import { FaqSection, Features, Hero, HowItWorks, PlatformStrip, Tips, ToolsShowcase, faqJsonLd } from "@/components/sections";
 import { CAPTION_PAGES, captionPageBySlug } from "@/lib/captionTools";
 import { CLIP_PAGES, clipPageBySlug } from "@/lib/clipTools";
 import { CONTENT } from "@/lib/content";
@@ -86,13 +87,19 @@ async function SlugContent({ params }: { params: PageProps<"/[slug]">["params"] 
       />
       <JsonLd data={faqJsonLd(c.faqs)} />
 
-      <Hero title={c.h1} highlight={c.highlight} subtitle={c.intro} platformHint={p.id} />
+      <Hero title={c.h1} highlight={c.highlight} subtitle={c.intro} platformHint={p.id} crumbs={[{ href: `/${p.slug}`, label: `${p.short} downloader` }]} />
       <PlatformStrip current={p.id} />
       <HowItWorks steps={c.howTo} platformName={p.short} />
       <Tips tips={c.tips} />
       <Features />
-      <ComingSoon />
+      <ToolsShowcase exclude="download" eyebrow="Do more with it" title={`Turn ${p.short} videos into ready-to-post Shorts`} />
       <FaqSection faqs={c.faqs} title={`${p.short} downloader FAQ`} />
+      <ClosingCta
+        href="/ai-clip-generator"
+        label="Try AI Clips free"
+        title="Got a long video? Turn it into Shorts."
+        body="AI Clips finds the best moments, frames the speaker and captions every word. Paste the same link, no re-uploading."
+      />
     </>
   );
 }

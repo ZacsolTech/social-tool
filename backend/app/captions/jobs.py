@@ -22,7 +22,7 @@ from ..reframe.analyze import Cancelled as ReframeCancelled
 from ..reframe.media import MediaError, MediaInfo, probe
 from . import ass as assmod
 from . import cuts as cutmod
-from . import enhance, languages, llm, render, stt, translit
+from . import enhance, languages, llm, render, stt, translit, verify
 from .styles import Style
 from .transcript import (Line, Transcript, Word, build_lines, from_dict, normalize, parse_subtitles, retime, split_text,
                          to_srt, to_txt, to_vtt)
@@ -87,6 +87,7 @@ class Job:
     upload_ref: str | None = None
     pending: dict[str, Any] = field(default_factory=dict)     # parameters of the queued task
     logo: Path | None = None
+    check: dict[str, Any] | None = None   # report of the accuracy check (verify.Report.public())
 
     def eta(self) -> float | None:
         if self.state not in ACTIVE or self.state == "queued" or not self.started or self.progress < 0.05:
@@ -106,7 +107,7 @@ class Job:
             "rtl": lang.rtl and not (t and t.language.endswith("-Latn")),
             "source": {"type": self.source.get("type"), "url": f"{base}/source"},
             "info": self.info.public() if self.info else None,
-            "provider": self.provider, "hooks": self.hooks,
+            "provider": self.provider, "hooks": self.hooks, "check": self.check,
             "transcript_rev": t.rev if t else None,
             "has_logo": self.logo is not None and self.logo.exists(),
             "output": ({"url": f"{base}/file/video?v={self.render_version}", "size": self.output.size,
@@ -318,7 +319,7 @@ def task_transcribe(job: Job, subtitles: str | None = None, reuse: dict | None =
     roman = job.language in ("ur-Latn", "hi-Latn")
     # Roman Urdu / Hinglish: transcribe as Hindi (Devanagari writes every vowel), then romanise word by word.
     stt_lang = "hi" if roman else (choice.stt if choice else None)
-    res = stt.transcribe(audio, stt_lang, job.prompt, job.cancel.is_set, _phase(job, lo, 0.95),
+    res = stt.transcribe(audio, stt_lang, job.prompt, job.cancel.is_set, _phase(job, lo, 0.7),
                          stage=lambda s: setattr(job, "stage", s))
     job.provider = res.provider
     if not res.words:
@@ -326,7 +327,7 @@ def task_transcribe(job: Job, subtitles: str | None = None, reuse: dict | None =
     lang = job.language if (choice and job.language != "auto") else (res.language or "en")
     lines = build_lines(res.words, lang, breaks=[s for s, _, _ in res.segments])
     t = Transcript(language=lang, lines=lines, source="ai", rev=1)
-    _proofread(job, t, res.language or stt_lang or lang)
+    _verify(job, t, audio, res, stt_lang or res.language)
     if roman:
         _romanize_words(t, "urdu" if job.language == "ur-Latn" else "hindi", allow_ai=True)
         t.language = job.language
@@ -334,28 +335,21 @@ def task_transcribe(job: Job, subtitles: str | None = None, reuse: dict | None =
     job.progress = 1.0
 
 
-def _proofread(job: Job, t: Transcript, heard_lang: str) -> None:
-    """Middle layer: a text AI fixes misheard words using the whole transcript. Word count per line must stay
-    the same (so every word keeps its timing); otherwise that line is left as heard."""
-    if not (get_settings().captions_ai_proofread and llm.available() and t.lines):
-        return
-    job.stage = "AI is checking the words"
+def _verify(job: Job, t: Transcript, audio: Path, res: stt.SttResult, stt_lang: str | None) -> None:
+    """Accuracy layer (see verify.py): a second listen with another model, an AI judge for the lines where
+    the two differ, and a flag on lines that still need a human look. Never fails the job: any problem
+    only means fewer checks."""
+    job.check = None
     try:
-        fixed = llm.proofread([(ln.id, [w.text for w in ln.words]) for ln in t.lines],
-                              languages.info(heard_lang).name, job.prompt)
-    except llm.LlmError as e:
-        log.info("proofread skipped: %s", e)
+        rep = verify.run(t, audio, res, stt_lang=stt_lang, prompt=job.prompt, title=job.title,
+                         duration=job.info.duration if job.info else None, cancelled=job.cancel.is_set,
+                         progress=_phase(job, 0.7, 0.98), stage=lambda x: setattr(job, "stage", x))
+    except stt.Cancelled:
+        raise Cancelled() from None
+    except Exception as e:  # noqa: BLE001
+        log.warning("caption check failed for %s: %s", job.id, e)
         return
-    changed = 0
-    for ln in t.lines:
-        new = fixed.get(ln.id)
-        if new and len(new) == len(ln.words):
-            for w, x in zip(ln.words, new):
-                x = x.strip()
-                if x and x != w.text:
-                    w.text = x
-                    changed += 1
-    log.info("captions %s proofread: %d words fixed", job.id, changed)
+    job.check = rep.public()
 
 
 def _romanize_words(t: Transcript, style: str, allow_ai: bool) -> None:

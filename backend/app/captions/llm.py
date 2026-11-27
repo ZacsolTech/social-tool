@@ -172,34 +172,64 @@ def translate(lines: list[tuple[str, str]], source: str, target: str) -> dict[st
     return out
 
 
-# ---------------------------------------------------------------- proofreading (misheard words)
+# ---------------------------------------------------------------- accuracy check (the AI judge)
 
-_PROOF_SYSTEM = (
-    "You proofread automatic speech-recognition captions. Each line is the list of words the recogniser heard, "
-    "in order. Using the context of the whole video, fix ONLY words that were clearly misheard: a wrong word that "
-    "sounds similar, a broken or misspelled word, a name or term from the hints written wrongly, a word in the "
-    "wrong script. Keep the speaker's own words, slang, grammar and meaning: never paraphrase, translate, "
-    "summarise, add or remove words. Return every line with the same id and EXACTLY the same number of words "
-    "(one output word for each input word, punctuation attached). When unsure, keep the word as it is."
+_VERIFY_SYSTEM = (
+    "You are the final accuracy check for video captions. The audio was transcribed by speech recognition; "
+    "for most lines a SECOND, different recogniser listened to the same moment too. For each line you get:\n"
+    "- heard: what the first recogniser wrote (its word timings are kept for every word you keep)\n"
+    "- alt: what the second recogniser wrote for the same seconds (missing when there is no second listen)\n"
+    "- unsure: true when the first recogniser itself was not confident\n"
+    "- before / after: the neighbouring captions, for context only\n"
+    "Lines with an empty 'heard' are speech only the second recogniser caught: return it if it is real speech "
+    "that belongs in the video, or an empty text if it is noise, music or an invented phrase.\n\n"
+    "Write the words that were most likely really SPOKEN. Where heard and alt differ, choose word by word what "
+    "fits the sound of both, the grammar and the context of the whole video; fix names and terms from the "
+    "hints and the title. Add a word that heard dropped when alt has it and it was clearly said; drop a word "
+    "that heard invented (a repeat, a filler phrase like 'thanks for watching' that alt doesn't have).\n"
+    "Strict rules: write exactly what was said, in the language and script of 'heard'. Keep the speaker's own "
+    "words, slang, repetitions, fillers (um, uh), grammar mistakes and word order. Never paraphrase, translate, "
+    "summarise, censor or add words of your own. Keep punctuation light and natural. When both versions are "
+    "plausible and you cannot tell, keep heard. Set sure=false when you could not tell what was said (the line "
+    "is then shown to the person to check). Return every line you were given, with the same id."
 )
 
-
-def proofread(lines: list[tuple[str, list[str]]], language: str, hints: str | None) -> dict[str, list[str]]:
-    schema = {
+_VERIFY_SCHEMA = {
+    "type": "object",
+    "properties": {"lines": {"type": "array", "items": {
         "type": "object",
-        "properties": {"lines": {"type": "array", "items": {
-            "type": "object",
-            "properties": {"id": {"type": "string"}, "words": {"type": "array", "items": {"type": "string"}}},
-            "required": ["id", "words"], "additionalProperties": False}}},
-        "required": ["lines"], "additionalProperties": False,
-    }
-    out: dict[str, list[str]] = {}
-    for _, chunk in _batches(lines):
-        payload = {"language": language, "hints": hints or "", "lines": [{"id": i, "words": w} for i, w in chunk]}
-        data = _ask(_PROOF_SYSTEM, payload, schema)
-        for row in data.get("lines", []):
-            if isinstance(row, dict) and row.get("id") and isinstance(row.get("words"), list):
-                out[str(row["id"])] = [str(x) for x in row["words"]]
+        "properties": {"id": {"type": "string"}, "text": {"type": "string"}, "sure": {"type": "boolean"}},
+        "required": ["id", "text", "sure"], "additionalProperties": False}}},
+    "required": ["lines"], "additionalProperties": False,
+}
+
+
+def verify(items: list[dict[str, Any]], language: str, hints: str | None, title: str | None,
+           progress: Any = None, cancelled: Any = None) -> dict[str, tuple[str, bool]]:
+    """items: {id, heard, alt?, unsure, before, after}. Returns id -> (text that was spoken, sure).
+    A batch that fails is skipped (its lines stay as heard); only a total failure raises."""
+    size = 40 if api_key() else 20
+    out: dict[str, tuple[str, bool]] = {}
+    failed: LlmError | None = None
+    done = 0
+    for _, chunk in _batches(items, size):
+        if cancelled and cancelled():
+            break
+        payload = {"language": language, "hints": hints or "", "title": title or "", "lines": chunk}
+        try:
+            data = _ask(_VERIFY_SYSTEM, payload, _VERIFY_SCHEMA)
+        except LlmError as e:
+            log.info("caption check batch skipped: %s", e)
+            failed = e
+        else:
+            for row in data.get("lines", []):
+                if isinstance(row, dict) and row.get("id") and isinstance(row.get("text"), str):
+                    out[str(row["id"])] = (row["text"].strip(), row.get("sure") is not False)
+        done += len(chunk)
+        if progress:
+            progress(done / max(1, len(items)))
+    if failed and not out:
+        raise failed
     return out
 
 

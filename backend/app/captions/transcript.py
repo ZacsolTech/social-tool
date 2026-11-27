@@ -23,6 +23,7 @@ class Word:
     end: float
     keyword: bool = False
     emoji: str | None = None
+    prob: float = 1.0                        # speech-to-text confidence (0-1); internal, not saved
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {"text": self.text, "start": round(self.start, 3), "end": round(self.end, 3)}
@@ -38,6 +39,7 @@ class Line:
     words: list[Word]
     id: str = field(default_factory=lambda: secrets.token_hex(4))
     translation: str | None = None
+    check: bool = False                      # the AI check wasn't sure: worth a human look
 
     @property
     def start(self) -> float:
@@ -55,6 +57,8 @@ class Line:
                              "text": self.text(lang), "words": [w.to_dict() for w in self.words]}
         if self.translation:
             d["translation"] = self.translation
+        if self.check:
+            d["check"] = True
         return d
 
 
@@ -88,7 +92,7 @@ def from_dict(d: dict[str, Any]) -> Transcript:
                       keyword=bool(w.get("keyword", False)), emoji=(w.get("emoji") or None))
                  for w in ln.get("words") or []]
         lines.append(Line(words=words, id=str(ln.get("id") or secrets.token_hex(4))[:16],
-                          translation=(ln.get("translation") or None)))
+                          translation=(ln.get("translation") or None), check=bool(ln.get("check", False))))
     return Transcript(language=str(d.get("language") or "en"), lines=lines, source=str(d.get("source") or "ai"),
                       translation_lang=d.get("translation_lang") or None, rev=int(d.get("rev") or 0))
 

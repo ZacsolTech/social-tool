@@ -52,11 +52,11 @@ export const TOOL_PAGES: ToolPage[] = [
   {
     slug: REFRAME_SLUG,
     nav: "Landscape to portrait",
-    title: "Landscape to Portrait Video Converter: AI Reframe 16:9 to 9:16 Free",
+    title: "Landscape to Portrait Video Converter (AI, Free)",
     h1: "Turn landscape video into vertical, automatically",
     highlight: "automatically",
     description:
-      "Convert 16:9 landscape video to 9:16 portrait for TikTok, Reels and Shorts. AI follows the speaker, switches between people and keeps text readable. Free, no watermark.",
+      "Convert landscape video to portrait 9:16 for TikTok, Reels and Shorts. AI follows the speaker, splits two people and keeps text whole. Free, no watermark.",
     intro:
       "Upload a horizontal video or paste a link. Smart Reframe follows whoever is talking, uses split screen for two people, stacks your facecam above gameplay, and never cuts off slides. Or use Blur Fill to keep everything.",
     preset: { mode: "smart" },
@@ -79,7 +79,7 @@ export const TOOL_PAGES: ToolPage[] = [
   {
     slug: "youtube-to-shorts-converter",
     nav: "YouTube to Shorts",
-    title: "YouTube to Shorts Converter: Make Vertical Shorts From YouTube Videos",
+    title: "YouTube to Shorts Converter: Free AI 9:16",
     h1: "Turn a YouTube video into a vertical Short",
     highlight: "vertical Short",
     description:
@@ -105,7 +105,7 @@ export const TOOL_PAGES: ToolPage[] = [
   {
     slug: "16-9-to-9-16-video-converter",
     nav: "16:9 to 9:16",
-    title: "16:9 to 9:16 Video Converter Online: Free, AI or Blur Background",
+    title: "16:9 to 9:16 Video Converter Online, Free",
     h1: "16:9 to 9:16 video converter",
     highlight: "9:16",
     description:
@@ -127,11 +127,11 @@ export const TOOL_PAGES: ToolPage[] = [
   {
     slug: "auto-reframe-video-ai",
     nav: "AI auto reframe",
-    title: "Auto Reframe Video AI: Free Smart Crop That Follows the Speaker",
+    title: "Auto Reframe Video With AI: Free Smart Crop",
     h1: "AI auto reframe that follows the speaker",
     highlight: "follows the speaker",
     description:
-      "Free AI auto reframe: tracks faces, switches to whoever is speaking, split screen for two people, facecam layout for gameplay. A free alternative to paid auto-reframe tools.",
+      "AI auto reframe that follows the speaker like a camera operator: smooth crops, split screen and optional zoom. Turn 16:9 into 9:16 free, no watermark.",
     intro: "An AI director that watches your video shot by shot: who is on screen, who is talking, whether there's a webcam box or slides, and picks the best vertical layout for each moment.",
     preset: { mode: "smart", smart: { dynamic_zoom: true } },
     howTo: [
@@ -149,7 +149,7 @@ export const TOOL_PAGES: ToolPage[] = [
   {
     slug: "blur-background-video",
     nav: "Blur background",
-    title: "Add Blur Background to Video: Vertical Video With Blurred Sides, Free",
+    title: "Blur Background Video Maker: Vertical, Free",
     h1: "Vertical video with a blurred background",
     highlight: "blurred background",
     description:
@@ -167,7 +167,7 @@ export const TOOL_PAGES: ToolPage[] = [
   {
     slug: "resize-video-for-instagram-reels",
     nav: "Resize for Reels",
-    title: "Resize Video for Instagram Reels, Stories & Feed (9:16, 4:5, 1:1)",
+    title: "Resize Video for Instagram Reels (9:16, 4:5)",
     h1: "Resize video for Instagram Reels and feed",
     highlight: "Reels and feed",
     description:
@@ -185,7 +185,7 @@ export const TOOL_PAGES: ToolPage[] = [
   {
     slug: "podcast-to-shorts",
     nav: "Podcast to Shorts",
-    title: "Podcast to Shorts & Reels: AI Speaker Switching and Split Screen",
+    title: "Podcast to Shorts: AI Speaker Tracking, Free",
     h1: "Turn podcast clips into vertical Shorts",
     highlight: "vertical Shorts",
     description:
@@ -203,7 +203,7 @@ export const TOOL_PAGES: ToolPage[] = [
   {
     slug: "gameplay-to-tiktok",
     nav: "Gameplay to TikTok",
-    title: "Gameplay to TikTok: Facecam + Game Vertical Layout, Automatic",
+    title: "Gameplay to TikTok: Facecam Layout, Free",
     h1: "Gameplay with facecam to vertical, automatically",
     highlight: "automatically",
     description:

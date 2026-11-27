@@ -269,6 +269,7 @@ class LineIn(BaseModel):
     id: str | None = Field(None, max_length=32)
     words: list[WordIn] = Field(max_length=400)
     translation: str | None = Field(None, max_length=1000)
+    check: bool = False          # the accuracy check flagged this line; the editor drops it once fixed
 
 
 class TranscriptIn(BaseModel):

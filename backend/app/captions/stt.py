@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import math
 import os
 import subprocess
 import threading
@@ -73,17 +74,29 @@ def _filter(segs: list[dict], words: list[dict], offset: float) -> tuple[list[Wo
     """Keep the words inside segments Whisper is confident are speech; shift by the piece's offset."""
     kept = [s for s in segs if _keep_segment(s)]
     spans = [(float(s["start"]), float(s["end"])) for s in kept]
+    conf = [_seg_conf(s) for s in kept]
     out: list[Word] = []
     for w in words:
         s, e = float(w.get("start", 0)), float(w.get("end", 0))
         mid = (s + e) / 2
-        if spans and not any(a - 0.3 <= mid <= b + 0.3 for a, b in spans):
+        hit = next((k for k, (a, b) in enumerate(spans) if a - 0.3 <= mid <= b + 0.3), None)
+        if spans and hit is None:
             continue
         text = str(w.get("word", "")).strip()
         if text:
-            out.append(Word(text=text, start=s + offset, end=max(e, s + 0.04) + offset))
+            p = w.get("probability")
+            prob = float(p) if isinstance(p, (int, float)) else (conf[hit] if hit is not None else 1.0)
+            out.append(Word(text=text, start=s + offset, end=max(e, s + 0.04) + offset, prob=prob))
     segments = [(float(s["start"]) + offset, float(s["end"]) + offset, str(s.get("text", "")).strip()) for s in kept]
     return out, segments
+
+
+def _seg_conf(seg: dict) -> float:
+    """How sure Whisper was about a segment, 0-1 (from its average log-probability per token)."""
+    try:
+        return max(0.0, min(1.0, math.exp(float(seg.get("avg_logprob") or 0))))
+    except (TypeError, ValueError):
+        return 1.0
 
 
 def _retry_after(r: httpx.Response, default: float) -> float:
@@ -99,6 +112,7 @@ class SttResult:
     words: list[Word]
     provider: str
     segments: list[tuple[float, float, str]] = field(default_factory=list)
+    model: str | None = None
 
 
 # ---------------------------------------------------------------- audio
@@ -164,15 +178,19 @@ def _groq_call(endpoint: str, audio: Path, data: dict, offset: float) -> tuple[s
     return body.get("language"), words, segments
 
 
-def _groq_transcribe(audio: Path, language: str | None, prompt: str | None, cancelled: Callable[[], bool],
-                     progress: Callable[[float], None]) -> SttResult:
+def _groq_model(language: str | None) -> str:
     s = get_settings()
+    return s.groq_model_accurate if language in s.groq_accurate_languages else s.groq_model
+
+
+def _groq_transcribe(audio: Path, language: str | None, prompt: str | None, cancelled: Callable[[], bool],
+                     progress: Callable[[float], None], model: str | None = None) -> SttResult:
     parts = split_audio(audio) if audio.stat().st_size > GROQ_MAX_BYTES else [(audio, 0.0)]
     lang, words, segments = None, [], []
+    model = model or _groq_model(language)
     for k, (path, offset) in enumerate(parts):
         if cancelled():
             raise Cancelled()
-        model = s.groq_model_accurate if language in s.groq_accurate_languages else s.groq_model
         data: dict = {"model": model, "response_format": "verbose_json", "temperature": "0",
                       "timestamp_granularities[]": ["word", "segment"]}
         if language:
@@ -184,7 +202,7 @@ def _groq_transcribe(audio: Path, language: str | None, prompt: str | None, canc
         words += w
         segments += seg
         progress((k + 1) / len(parts))
-    return SttResult(languages.normalize(language or lang), words, "groq", segments)
+    return SttResult(languages.normalize(language or lang), words, "groq", segments, model)
 
 
 def _groq_translate(audio: Path, prompt: str | None, cancelled: Callable[[], bool]) -> list[tuple[float, float, str]]:
@@ -267,7 +285,8 @@ def _cf_transcribe(audio: Path, language: str | None, prompt: str | None, cancel
         words += w
         segments += seg
         progress((k + 1) / len(parts))
-    return SttResult(languages.normalize(language or lang), words, "cloudflare", segments)
+    return SttResult(languages.normalize(language or lang), words, "cloudflare", segments,
+                     get_settings().cloudflare_whisper_model)
 
 
 def _cf_translate(audio: Path, prompt: str | None, cancelled: Callable[[], bool]) -> list[tuple[float, float, str]]:
@@ -410,7 +429,8 @@ def _local_run(audio: Path, language: str | None, prompt: str | None, task: str,
             continue
         segments.append((seg.start, seg.end, seg.text.strip()))
         for w in seg.words or []:
-            words.append(Word(text=w.word.strip(), start=w.start, end=max(w.end, w.start + 0.04)))
+            words.append(Word(text=w.word.strip(), start=w.start, end=max(w.end, w.start + 0.04),
+                              prob=float(getattr(w, "probability", 1.0) or 0.0)))
     return getattr(info, "language", None), words, segments
 
 
@@ -466,7 +486,8 @@ def transcribe(audio: Path, language: str | None, prompt: str | None = None,
 
     def local() -> SttResult:
         lang, words, segments = _local_run(audio, language, p, "transcribe", cancelled, progress, stage)
-        return SttResult(languages.normalize(language or lang), words, "local", segments)
+        return SttResult(languages.normalize(language or lang), words, "local", segments,
+                         get_settings().local_whisper_model)
     def retry_plain(run, res: SttResult) -> SttResult:
         """A prompt made Whisper loop or copy it: listen again without one."""
         if p and _suspicious(res.segments):
@@ -503,3 +524,42 @@ def translate_to_english(audio: Path, prompt: str | None = None,
         "cloudflare": lambda: _cf_translate(audio, prompt, cancelled),
         "local": lambda: _local_run(audio, None, prompt, "translate", cancelled, lambda p: None)[2],
     })
+
+
+def second_listen(audio: Path, language: str | None, prompt: str | None, first: SttResult,
+                  cancelled: Callable[[], bool] = lambda: False,
+                  progress: Callable[[float], None] = lambda p: None) -> SttResult | None:
+    """Listen to the same audio again with a *different* model, for the accuracy check: where two models
+    agree the words are almost surely right; where they differ, the AI judge decides. None when no other
+    model is available (or it fails): the check then works from the first listen alone."""
+    s = get_settings()
+    if first.provider not in ("groq", "cloudflare", "local"):
+        return None
+    lang = language or first.language
+    p = build_prompt(lang, prompt)
+    now = time.time()
+    tries: list[tuple[str, Callable[[], SttResult]]] = []
+    if _groq_key() and _cooldown.get("groq", 0) <= now:
+        if first.provider == "groq":
+            other = s.groq_model if first.model == s.groq_model_accurate else s.groq_model_accurate
+        else:
+            other = s.groq_model_accurate
+        tries.append(("groq", lambda: _groq_transcribe(audio, lang, p, cancelled, progress, model=other)))
+    if _cf_creds() and first.provider != "cloudflare" and _cooldown.get("cloudflare", 0) <= now:
+        tries.append(("cloudflare", lambda: _cf_transcribe(audio, lang, p, cancelled, progress)))
+    if s.captions_verify_local and first.provider != "local":
+        def local() -> SttResult:
+            got, words, segments = _local_run(audio, lang, p, "transcribe", cancelled, progress)
+            return SttResult(languages.normalize(lang or got), words, "local", segments, s.local_whisper_model)
+        tries.append(("local", local))
+    for name, run in tries:
+        try:
+            res = run()
+        except Cancelled:
+            raise
+        except SttError as e:      # a quota or outage only skips the second opinion, nothing else
+            log.info("second listen with %s skipped: %s", name, e.message)
+            continue
+        if res.words and not (p and _suspicious(res.segments)):
+            return res
+    return None

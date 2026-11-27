@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from ..captions import jobs as cjobs
-from ..captions import languages, llm, stt
+from ..captions import languages, stt, verify
 from ..captions.styles import Style
 from ..captions.transcript import Transcript, build_lines, normalize, to_srt
 from ..config import DATA_DIR, get_settings
@@ -153,6 +153,8 @@ class Job:
     upload_ref: str | None = None
     pending: dict[str, Any] = field(default_factory=dict)
     zip_key: tuple | None = None
+    heard: Any = None                  # the speech-to-text result (for the second listen of the accuracy check)
+    checked: set[str] = field(default_factory=set)   # transcript lines the accuracy check already looked at
 
     @property
     def end(self) -> float:
@@ -386,6 +388,8 @@ def _transcribe(job: Job) -> None:
     job.provider = res.provider
     if not res.words:
         raise JobError("We couldn't hear any speech in this video. If it has speech, try choosing the language.")
+    job.heard = stt.SttResult(res.language, [], res.provider, [], res.model)
+    job.checked = set()
     off = st.range_start
     if off:
         for w in res.words:
@@ -401,26 +405,28 @@ def _transcribe(job: Job) -> None:
 
 
 def _proofread_clips(job: Job) -> None:
-    """Fix misheard words inside the chosen clips only (cheap: a few lines, not the whole hour)."""
+    """Accuracy check (captions/verify.py) on the chosen clips only: their stretches of audio are heard a
+    second time by another model and an AI judge settles the differences. Cheap: minutes, not the hour."""
     t = job.transcript
-    if not (t and job.clips and get_settings().captions_ai_proofread and llm.available()):
+    if not (t and job.clips) or t.language.endswith("-Latn"):
         return
-    lines = [ln for ln in t.lines if any(ln.end > c.start and ln.start < c.end for c in job.clips)]
-    if not lines or t.language.endswith("-Latn"):
+    lines = [ln for ln in t.lines if ln.id not in job.checked
+             and any(ln.end > c.start and ln.start < c.end for c in job.clips)]
+    if not lines:
         return
-    job.stage = "AI is checking the words"
+    spans = verify.merge_ranges([(c.start, c.end) for c in job.clips])
     try:
-        fixed = llm.proofread([(ln.id, [w.text for w in ln.words]) for ln in lines],
-                              languages.info(t.language).name, job.settings.topic)
-    except llm.LlmError as e:
-        log.info("clips proofread skipped: %s", e)
+        verify.run(t, job.audio, job.heard, stt_lang=job.heard.language if job.heard else None,
+                   hints=job.settings.topic, title=job.title, only=lines, ranges=spans,
+                   audio_offset=job.settings.range_start, cancelled=job.cancel.is_set,
+                   stage=lambda x: setattr(job, "stage", x))
+    except stt.Cancelled:
+        raise Cancelled() from None
+    except Exception as e:  # noqa: BLE001
+        log.warning("clips caption check failed for %s: %s", job.id, e)
         return
-    for ln in lines:
-        new = fixed.get(ln.id)
-        if new and len(new) == len(ln.words):
-            for w, x in zip(ln.words, new):
-                if x.strip():
-                    w.text = x.strip()
+    job.checked.update(ln.id for ln in t.lines if any(ln.end > c.start and ln.start < c.end for c in job.clips))
+    job.transcript = normalize(t, job.info.duration if job.info else None)
     t.rev += 1
 
 

@@ -96,6 +96,7 @@ export function BoostPanel({
       </Card>
 
       <Card
+        id="translate-panel"
         icon={Languages}
         title="Translate"
         badge={ai ? <Badge>AI</Badge> : <Badge tone="muted">English</Badge>}
@@ -232,12 +233,14 @@ const secondary =
   "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-line-strong px-4 py-2 text-sm font-medium transition hover:border-fg disabled:opacity-50";
 
 function Card({
+  id,
   icon: Icon,
   title,
   body,
   badge,
   children,
 }: {
+  id?: string;
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   body: string;
@@ -245,7 +248,7 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-3 rounded-2xl border border-line p-4">
+    <section id={id} className="scroll-mt-24 space-y-3 rounded-2xl border border-line p-4">
       <div className="flex items-start gap-3">
         <span className={clsx("grid size-9 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent")}>
           <Icon className="size-4" />

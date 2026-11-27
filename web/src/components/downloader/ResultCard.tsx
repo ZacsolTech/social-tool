@@ -406,7 +406,7 @@ function AfterDownload({ onReset, data, item }: { onReset: () => void; data: Res
             <p className="font-medium">Add captions to it</p>
             <p className="text-muted">
               <Subtitles className="mr-1 inline size-3.5" />
-              AI captions with highlights and emojis. Urdu, Roman Urdu, Hindi, Arabic & more.
+              Accurate AI captions, checked twice, with highlights and emojis. Urdu, Roman Urdu, Hindi, Arabic & more.
             </p>
           </div>
         </div>

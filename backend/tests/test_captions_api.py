@@ -424,25 +424,50 @@ def test_health_counts_caption_jobs(client):
     assert "captions_jobs" in h and "captions_waiting" in h
 
 
-def test_proofread_layer_fixes_misheard_words_and_keeps_timings(client, media, monkeypatch):
-    monkeypatch.setattr(llm, "available", lambda: True)
-    seen = {}
+def test_accuracy_check_listens_twice_fixes_and_flags(client, media, monkeypatch, calls):
+    heard = "Hello everyone um welcome to the channel. Today I will show you how to safe money."
+    alt = "Hello everyone um welcome to the channel. Today I will show you how to save money fast."
 
-    def proofread(lines, language, hints):
-        seen["lang"], seen["hints"] = language, hints
-        out = {}
-        for i, (lid, words) in enumerate(lines):
-            new = list(words)
-            if i == 0:
-                new[0] = "KYA"                       # a fixed word
-            else:
-                new = new[:-1]                       # wrong word count: this line must stay as heard
-            out[lid] = new
-        return out
-    monkeypatch.setattr(llm, "proofread", proofread)
-    job = create(client, media["face"], language="hi", prompt="Klyprima")
-    assert seen == {"lang": "Hindi", "hints": "Klyprima"}
+    def transcribe(audio, language, prompt=None, cancelled=lambda: False, progress=lambda p: None, stage=lambda s: None):
+        calls.append(("stt", language, prompt))
+        return stt.SttResult("en", fake_words(heard), "groq", [], "whisper-large-v3-turbo")
+
+    def second_listen(audio, language, prompt, first, cancelled=lambda: False, progress=lambda p: None):
+        calls.append(("second", language, prompt, first.model))
+        return stt.SttResult("en", fake_words(alt), "groq", [], "whisper-large-v3")
+    asked = {}
+
+    def judge(items, language, hints, title, progress=None, cancelled=None):
+        asked.update(items=items, language=language, hints=hints)
+        return {i["id"]: (i["alt"], False) for i in items}
+    monkeypatch.setattr(stt, "transcribe", transcribe)
+    monkeypatch.setattr(stt, "second_listen", second_listen)
+    monkeypatch.setattr(llm, "available", lambda: True)
+    monkeypatch.setattr(llm, "verify", judge)
+    job = create(client, media["face"], language="en", prompt="Klyprima")
+    assert job["state"] == "ready", job
+    assert ("second", "en", "Klyprima", "whisper-large-v3-turbo") in calls
+    assert asked["language"] == "English" and asked["hints"] == "Klyprima"
+    assert [i["heard"] for i in asked["items"]] == ["Today I will show you how to safe money."]
     lines = job["transcript"]["lines"]
-    assert lines[0]["words"][0]["text"] == "KYA" and abs(lines[0]["words"][0]["start"] - 0.3) < 1e-6
-    heard = SPEECH["hi"].split()
-    assert [w["text"] for ln in lines[1:] for w in ln["words"]] == heard[len(lines[0]["words"]):]
+    assert lines[1]["text"] == "Today I will show you how to save money fast." and lines[1]["check"] is True
+    assert "check" not in lines[0]
+    first = fake_words(heard)[len(lines[0]["words"])]
+    assert abs(lines[1]["words"][0]["start"] - first.start) < 1e-6          # kept words keep their timing
+    assert job["check"]["listens"] == 2 and job["check"]["fixed_words"] == 2 and job["check"]["flagged"] == 1
+    # The flag survives a save from the editor and is gone once the person fixes the line.
+    t = job["transcript"]
+    r = client.put(f"/api/captions/jobs/{job['id']}/transcript", json=t)
+    assert r.status_code == 200 and r.json()["transcript"]["lines"][1]["check"] is True
+    t = r.json()["transcript"]
+    t["lines"][1].pop("check")
+    r = client.put(f"/api/captions/jobs/{job['id']}/transcript", json=t)
+    assert "check" not in r.json()["transcript"]["lines"][1]
+
+
+def test_accuracy_check_problems_never_fail_the_captions(client, media, monkeypatch):
+    def broken(*a, **kw):
+        raise RuntimeError("second listen exploded")
+    monkeypatch.setattr(cjobs.verify, "run", broken)
+    job = create(client, media["face"], language="en")
+    assert job["state"] == "ready" and job["transcript"]["lines"] and job["check"] is None

@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalPage";
 import { SITE } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Terms of Service", description: `The rules for using ${SITE.name}.`, alternates: { canonical: "/terms" } };
+export const metadata: Metadata = { title: "Terms of Service", description: `The terms for using ${SITE.name} AI Clips, Captions, Reframe and the video downloader: fair use, your content and AI results.`, alternates: { canonical: "/terms" } };
 
 export default function Page() {
   return (
-    <LegalPage title="Terms of Service" updated="November 17, 2026">
+    <LegalPage title="Terms of Service" updated="November 27, 2026">
       <p>By using {SITE.name} you agree to these terms.</p>
       <h2>Use content you have the right to use</h2>
       <p>
@@ -14,11 +14,17 @@ export default function Page() {
         how you use any file you download, including following the terms of the platform it came from and the creator&apos;s
         rights.
       </p>
-      <h2>Uploads and the Reframe tool</h2>
+      <h2>Uploads and the AI tools</h2>
       <p>
-        When you upload a video or convert a link with {SITE.name} Reframe, you confirm you have the right to edit and repost it. We
-        process it only to create your converted videos, keep the files only so you can download them, and delete them automatically
-        within 24 hours. Fair-use limits (file size, length and number of conversions per day) keep the service fast for everyone.
+        When you upload a video, or send a link to AI Clips, Captions or Reframe, you confirm you have the right to edit and repost
+        it. We process it only to create what you asked for (clips, captions, vertical videos), keep the files only so you can
+        download them, and delete them automatically within 24 hours. Fair-use limits (file size, video length and uses per day)
+        keep the service fast and free for everyone.
+      </p>
+      <h2>AI results</h2>
+      <p>
+        Clip choices, scores, titles, captions and translations are made by AI and can contain mistakes. The caption editor marks
+        lines the AI wasn&apos;t sure about, but please check what you post. You are responsible for the content you publish.
       </p>
       <h2>Acceptable use</h2>
       <ul>

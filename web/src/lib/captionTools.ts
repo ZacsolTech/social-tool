@@ -2,7 +2,8 @@ import type { Faq } from "./content";
 import { SITE } from "./site";
 
 /** What a landing page pre-selects in the caption tool. */
-export type CaptionPreset = { language?: string; style?: string; srt?: boolean };
+/** `translate`: open the Translate panel as soon as the captions are ready; `source`: the picker's first tab. */
+export type CaptionPreset = { language?: string; style?: string; srt?: boolean; translate?: boolean; source?: "upload" | "link" };
 
 export type CaptionPage = {
   slug: string;
@@ -53,11 +54,11 @@ export const CAPTION_PAGES: CaptionPage[] = [
   {
     slug: CAPTIONS_SLUG,
     nav: "Auto captions",
-    title: "Auto Caption Generator: Free AI Captions for Videos (Urdu, Hindi, English)",
+    title: "Free Auto Caption Generator: AI Video Captions",
     h1: "Add captions to any video, automatically",
     highlight: "automatically",
     description:
-      "Free AI auto captions for TikTok, Reels and Shorts. Word-by-word highlights, emojis, hook titles, Urdu, Roman Urdu, Hindi and 40+ languages. No sign-up, no watermark.",
+      "Free AI caption generator: accurate, animated word-by-word captions in 40+ languages, checked twice by AI. Urdu, Hindi, English. Export MP4 or SRT.",
     intro:
       "Upload a video or paste a link. AI writes every word with perfect timing, then you style it like the top creators: word-by-word highlights, emojis, a hook title and a progress bar. Export the MP4 or SRT.",
     preset: {},
@@ -75,7 +76,7 @@ export const CAPTION_PAGES: CaptionPage[] = [
   {
     slug: "add-urdu-subtitles-to-video",
     nav: "Urdu subtitles",
-    title: "Add Urdu Subtitles to Video: Free Urdu Caption Generator (Nastaliq)",
+    title: "Add Urdu Subtitles to Video Free (Nastaliq)",
     h1: "Urdu subtitles, written beautifully",
     highlight: "written beautifully",
     description:
@@ -94,7 +95,7 @@ export const CAPTION_PAGES: CaptionPage[] = [
   {
     slug: "roman-urdu-caption-generator",
     nav: "Roman Urdu captions",
-    title: "Roman Urdu Caption Generator: Auto Subtitles in Roman Urdu",
+    title: "Roman Urdu Caption Generator: Free Auto Subs",
     h1: "Roman Urdu captions, automatically",
     highlight: "automatically",
     description:
@@ -113,7 +114,7 @@ export const CAPTION_PAGES: CaptionPage[] = [
   {
     slug: "hindi-subtitle-generator",
     nav: "Hindi & Hinglish",
-    title: "Hindi Subtitle Generator: Auto Hindi & Hinglish Captions for Videos",
+    title: "Hindi Subtitle Generator: Hindi & Hinglish, Free",
     h1: "Hindi and Hinglish captions in a minute",
     highlight: "in a minute",
     description:
@@ -131,7 +132,7 @@ export const CAPTION_PAGES: CaptionPage[] = [
   {
     slug: "arabic-subtitles-generator",
     nav: "Arabic captions",
-    title: "Arabic Subtitles Generator: Auto Arabic Captions, Right-to-Left Done Right",
+    title: "Arabic Subtitles Generator: Free Auto Captions",
     h1: "Arabic captions that read right",
     highlight: "read right",
     description:
@@ -149,7 +150,7 @@ export const CAPTION_PAGES: CaptionPage[] = [
   {
     slug: "tiktok-caption-generator",
     nav: "TikTok captions",
-    title: "TikTok Caption Generator: Auto Captions With Word Highlights & Emojis",
+    title: "TikTok Caption Generator: Animated, No Watermark",
     h1: "TikTok captions that stop the scroll",
     highlight: "stop the scroll",
     description:
@@ -167,7 +168,7 @@ export const CAPTION_PAGES: CaptionPage[] = [
   {
     slug: "instagram-reels-captions",
     nav: "Reels captions",
-    title: "Instagram Reels Captions: Add Animated Subtitles to Reels Free",
+    title: "Add Captions to Instagram Reels Free (Animated)",
     h1: "Animated captions for Instagram Reels",
     highlight: "Instagram Reels",
     description:
@@ -185,7 +186,7 @@ export const CAPTION_PAGES: CaptionPage[] = [
   {
     slug: "youtube-shorts-captions",
     nav: "Shorts captions",
-    title: "YouTube Shorts Captions: Auto Subtitles for Shorts, Free",
+    title: "YouTube Shorts Captions: Free Auto Subtitles",
     h1: "Captions for YouTube Shorts",
     highlight: "YouTube Shorts",
     description:
@@ -203,7 +204,7 @@ export const CAPTION_PAGES: CaptionPage[] = [
   {
     slug: "srt-subtitle-generator",
     nav: "SRT generator",
-    title: "SRT Subtitle Generator: Video to SRT File Online, Free",
+    title: "SRT Subtitle Generator: Video to SRT, Free",
     h1: "Get an SRT file from any video",
     highlight: "SRT file",
     description: "Generate SRT, VTT or TXT subtitles from video automatically in 40+ languages. Edit the text, then download. Free, no watermark, no sign-up.",
@@ -220,7 +221,7 @@ export const CAPTION_PAGES: CaptionPage[] = [
   {
     slug: "burn-subtitles-into-video",
     nav: "Burn in subtitles",
-    title: "Burn Subtitles Into Video Online: Hardcode SRT Into MP4, Free",
+    title: "Burn Subtitles Into Video Online (SRT to MP4)",
     h1: "Burn subtitles into your video",
     highlight: "into your video",
     description: "Hardcode an SRT or VTT into your MP4 with styled, animated subtitles. Or let AI write them. Free, no watermark, works on phone.",
@@ -241,13 +242,13 @@ export const CAPTION_PAGES: CaptionPage[] = [
   {
     slug: "translate-video-subtitles",
     nav: "Translate subtitles",
-    title: "Translate Video Subtitles: Auto Translate Captions Into English & More",
+    title: "Translate Video Subtitles Free: 25 Languages",
     h1: "Translate your video's captions",
     highlight: "Translate",
     description:
       "Auto-translate video captions: Urdu to English, Hindi to English, English to Urdu and more. Show both languages at once. Free MP4 and SRT.",
     intro: "Reach a bigger audience without re-recording: captions in another language, or two languages at once, one under the other.",
-    preset: {},
+    preset: { translate: true },
     howTo: [
       "Upload your video or paste its link, then press Generate captions.",
       "Open Boost → Translate, pick a language and choose Original, Translation or Both.",
@@ -263,7 +264,7 @@ export const CAPTION_PAGES: CaptionPage[] = [
   {
     slug: "video-to-text-transcription",
     nav: "Video to text",
-    title: "Video to Text: Free AI Transcription in Urdu, Hindi, English & 40+ Languages",
+    title: "Video to Text Converter: Free AI Transcription",
     h1: "Turn video into text",
     highlight: "text",
     description: "Transcribe video to text with AI. Copy the transcript or download TXT/SRT. Urdu, Hindi, English, Arabic and 40+ languages. Free, no sign-up.",

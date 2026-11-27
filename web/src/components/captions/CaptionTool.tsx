@@ -98,6 +98,7 @@ export function CaptionTool({ preset }: { preset?: CaptionPreset }) {
   const [style, setStyleState] = useState<CStyle>(FALLBACK_STYLE);
   const [extras, setExtras] = useState<Extras>(DEFAULT_EXTRAS);
   const [tab, setTab] = useState<Tab>("captions");
+  const translateOpened = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [time, setTime] = useState(0);
@@ -418,6 +419,14 @@ export function CaptionTool({ preset }: { preset?: CaptionPreset }) {
   const duration = info?.duration ?? null;
   const currentLine = useMemo(() => (transcript ? lineIndexAt(transcript, time) : -1), [transcript, time]);
   const ready = !!transcript && !!job;
+
+  // The "translate subtitles" page: once the captions are written, go straight to the Translate panel.
+  useEffect(() => {
+    if (!preset?.translate || translateOpened.current || !ready || job?.state !== "ready") return;
+    translateOpened.current = true;
+    setTab("boost");
+    setTimeout(() => document.getElementById("translate-panel")?.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
+  }, [preset?.translate, ready, job?.state]);
   const working = job ? ACTIVE.includes(job.state) : false;
   const busy = working ? job!.task : null;
   const onTime = useCallback((t: number) => setTime(t), []);
@@ -571,6 +580,7 @@ export function CaptionTool({ preset }: { preset?: CaptionPreset }) {
             {tab === "captions" && (
               <TranscriptEditor
                 transcript={transcript}
+                report={job.check}
                 onChange={edit}
                 current={currentLine}
                 onSeek={(t) => {

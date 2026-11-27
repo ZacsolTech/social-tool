@@ -4,7 +4,8 @@ import type { Faq } from "./content";
 import { SITE } from "./site";
 
 /** What a landing page pre-selects in the clips tool. */
-export type ClipPreset = { length?: LengthId; aspect?: ClipAspect; style?: string; language?: string };
+/** `source`: which tab the picker opens on; `count`: how many clips to ask for. */
+export type ClipPreset = { length?: LengthId; aspect?: ClipAspect; style?: string; language?: string; source?: "upload" | "link"; count?: number };
 
 export type ClipPage = {
   slug: string;
@@ -59,11 +60,11 @@ export const CLIP_PAGES: ClipPage[] = [
   {
     slug: CLIPS_SLUG,
     nav: "AI clip generator",
-    title: "AI Clip Generator: Turn Long Videos Into Viral Shorts, Free",
+    title: "Free AI Clip Generator: Long Video to Shorts",
     h1: "Turn one long video into viral clips",
     highlight: "viral clips",
     description:
-      "Free AI clip generator: upload a podcast, interview or YouTube video and get the best moments as vertical Shorts, Reels and TikToks with captions, hook titles and a virality score. No watermark.",
+      "Turn one long video into viral Shorts, Reels and TikToks. AI finds the best moments, scores them, frames the speaker and adds captions. Free, no watermark.",
     intro:
       "Upload a long video or paste a link. AI finds the moments people will watch to the end, cuts them on full sentences, follows the speaker in 9:16, adds animated captions and a hook, and scores each clip. Ready to post.",
     preset: {},
@@ -81,13 +82,13 @@ export const CLIP_PAGES: ClipPage[] = [
   {
     slug: "youtube-video-to-shorts",
     nav: "YouTube to Shorts",
-    title: "YouTube Video to Shorts: AI Turns Long Videos Into Shorts, Free",
+    title: "YouTube Video to Shorts With AI: Free Clipper",
     h1: "Turn YouTube videos into Shorts",
     highlight: "Shorts",
     description:
       "Paste a YouTube link and AI cuts the best moments into vertical YouTube Shorts with captions, hook titles and a virality score. Free, no watermark, no sign-up.",
     intro: "Your long videos already contain dozens of Shorts. Paste the link, and AI finds them, frames them for 9:16 and captions them, so your channel gets daily Shorts without extra filming.",
-    preset: { length: "medium" },
+    preset: { length: "medium", source: "link" },
     howTo: steps("Paste your YouTube video link, or upload the file you exported."),
     tips: [
       { title: "Shorts sweet spot", body: "30 to 60 seconds gives a complete thought and a strong finish. Change it to under 30 s for faster loops." },
@@ -99,7 +100,7 @@ export const CLIP_PAGES: ClipPage[] = [
   {
     slug: "podcast-to-clips",
     nav: "Podcast clips",
-    title: "Podcast to Clips: AI Finds the Best Podcast Moments for Reels & TikTok",
+    title: "Podcast to Clips: AI Finds Viral Moments, Free",
     h1: "Your podcast, cut into clips that travel",
     highlight: "clips that travel",
     description:
@@ -117,13 +118,13 @@ export const CLIP_PAGES: ClipPage[] = [
   {
     slug: "long-video-to-short-clips",
     nav: "Long to short",
-    title: "Long Video to Short Clips: Free AI Video Clipper Online",
+    title: "Long Video to Short Clips: Free AI Clipper",
     h1: "Long video in, short clips out",
     highlight: "short clips out",
     description:
-      "Cut long videos into short clips automatically. AI finds highlights, reframes to vertical and adds captions. Lectures, streams, webinars and vlogs. Free online, no watermark.",
+      "Cut a long video into up to 10 short clips with AI. Each one starts on a hook, ends on a full sentence and comes vertical with captions. Free, no sign-up.",
     intro: "Stop scrubbing through hours of footage. AI finds the highlights in your lecture, livestream, webinar or vlog and cuts them into short, captioned clips with titles.",
-    preset: {},
+    preset: { count: 10 },
     howTo: steps("Upload your long video or paste its link."),
     tips: [
       { title: "Any length you want", body: "From punchy 15-second loops to 3-minute stories: pick the length, the AI fits the moments to it." },
@@ -135,7 +136,7 @@ export const CLIP_PAGES: ClipPage[] = [
   {
     slug: "video-to-reels",
     nav: "Video to Reels",
-    title: "Video to Reels: AI Makes Instagram Reels From Your Long Videos, Free",
+    title: "Video to Reels: AI Makes Reels From Long Videos",
     h1: "Make Instagram Reels from any long video",
     highlight: "Instagram Reels",
     description:
@@ -153,11 +154,11 @@ export const CLIP_PAGES: ClipPage[] = [
   {
     slug: "urdu-hindi-video-to-shorts",
     nav: "Urdu & Hindi clips",
-    title: "Urdu & Hindi Video to Shorts: AI Clips With Urdu, Roman Urdu & Hindi Captions",
+    title: "Urdu & Hindi Video to Shorts: Free AI Clips",
     h1: "Shorts from Urdu & Hindi videos, done right",
     highlight: "done right",
     description:
-      "AI finds the best moments in Urdu, Hindi and Punjabi podcasts and videos and turns them into Shorts with Nastaliq Urdu, Roman Urdu or Hindi captions. Free, no watermark.",
+      "Turn Urdu and Hindi podcasts and videos into Shorts. AI picks the best moments and adds Urdu Nastaliq, Roman Urdu or Hindi captions. Free, no watermark.",
     intro: "Big clipping apps struggle with Urdu and Hindi. Here the AI understands your language, writes titles and hashtags in it, and captions in proper Nastaliq, Roman Urdu or Devanagari.",
     preset: { language: "ur" },
     howTo: steps("Upload your Urdu, Hindi or Punjabi video, or paste its link. Pick the language (Roman Urdu for Latin letters)."),

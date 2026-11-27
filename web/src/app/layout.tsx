@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { JsonLd } from "@/components/JsonLd";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { themeScript } from "@/components/ThemeToggle";
@@ -13,14 +14,16 @@ const serif = Instrument_Serif({ variable: "--font-serif", subsets: ["latin"], w
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
   title: {
-    default: `${SITE.name}: Free Video Downloader for TikTok, Instagram & More (No Watermark)`,
+    default: `${SITE.name}: Free AI Clip Generator, Long Video to Shorts`,
     template: `%s | ${SITE.name}`,
   },
   description: SITE.description,
   applicationName: SITE.name,
   alternates: { canonical: "/" },
   openGraph: { type: "website", siteName: SITE.name, url: "/" },
-  twitter: { card: "summary_large_image" },
+  twitter: { card: "summary_large_image", title: `${SITE.name}: Free AI Clip Generator`, description: SITE.description },
+  keywords: ["AI clip generator", "long video to shorts", "podcast clips", "auto captions", "Urdu subtitles", "Roman Urdu captions", "video to 9:16", "video downloader"],
+  category: "technology",
   appleWebApp: { capable: true, title: SITE.name, statusBarStyle: "default" },
   formatDetection: { telephone: false },
   icons: { apple: "/pwa-icon/apple-180" },
@@ -52,6 +55,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           Skip to content
         </a>
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: SITE.name,
+            url: SITE.url,
+            logo: `${SITE.url}/pwa-icon/512`,
+            email: SITE.email,
+            slogan: SITE.slogan,
+          }}
+        />
         <SiteHeader />
         <main id="main" className="flex-1">
           {children}

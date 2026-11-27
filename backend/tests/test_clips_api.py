@@ -259,9 +259,9 @@ def test_ai_finder_and_proofread_are_used(client, talk, monkeypatch):
     asked = []
 
     def ask(system, payload, schema):
-        asked.append(system[:30])
-        if "proofread" in system:
-            return {"lines": [{"id": ln["id"], "words": [w.replace("rich", "wealthy") for w in ln["words"]]}
+        asked.append(system[:40])
+        if "accuracy check" in system:
+            return {"lines": [{"id": ln["id"], "text": ln["heard"].replace("rich", "wealthy"), "sure": True}
                               for ln in payload["lines"]]}
         return {"clips": [{"start_line": 2, "end_line": 6, "title": "Why you never save", "hook": "Nobody tells you this",
                            "description": "The one money rule.", "hashtags": ["money", "saving"], "hook_score": 91,
@@ -278,7 +278,7 @@ def test_ai_finder_and_proofread_are_used(client, talk, monkeypatch):
     assert c["title"] == "Why you never save" and c["hook"] == "Nobody tells you this"
     assert c["hashtags"] == ["#money", "#saving"] and c["score"] == 84     # 0.35*91 + 0.25*85 + 0.25*80 + 0.15*70
     assert "wealthy" in c["text"] and "rich" not in c["text"]
-    assert any("proofread" in a for a in asked)
+    assert any("accuracy check" in a for a in asked)
 
 
 def test_range_language_and_roman_urdu(client, talk, calls):

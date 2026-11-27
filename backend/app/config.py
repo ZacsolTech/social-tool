@@ -67,7 +67,13 @@ class Settings(BaseSettings):
     groq_accurate_languages: list[str] = ["ur", "hi", "pa", "sd", "ps", "bn", "fa", "ne", "mr", "gu", "ta", "te"]
     # After speech-to-text, a text AI fixes misheard words using the whole transcript (same word count, so the
     # timings stay). Free with the Groq key.
+    # Accuracy check: listen a second time with another model, let the AI judge settle where the two differ,
+    # and flag lines it still isn't sure about. CF_CAPTIONS_AI_PROOFREAD=false turns the AI judge off.
     captions_ai_proofread: bool = True
+    captions_verify_listen: bool = True          # the second listen (uses more speech-to-text quota)
+    captions_verify_listen_max_sec: int = 40 * 60  # longer videos: AI judge on the first listen only
+    captions_verify_local: bool = False          # also use the slow CPU model as the second opinion
+    captions_verify_doubt: float = 0.6           # words heard with less confidence than this get checked
     groq_translate_model: str = "whisper-large-v3"        # speech -> English translation
     # Free text model on the same Groq key: AI translation / Roman Urdu / highlights when there's no Anthropic key.
     groq_llm_model: str = "openai/gpt-oss-120b"

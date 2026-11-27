@@ -1,68 +1,29 @@
 import { Captions, Crop, FolderDown, Gauge, Languages, Scissors, ShieldCheck, Wand2 } from "lucide-react";
-import Link from "next/link";
-import { JsonLd } from "@/components/JsonLd";
-import { FaqSection, HowItWorks, SectionHeading, Tips, faqJsonLd } from "@/components/sections";
-import { CLIP_PAGES, type ClipPage } from "@/lib/clipTools";
-import { SITE } from "@/lib/site";
+import { ClosingCta } from "@/components/marketing";
+import { FaqSection, HowItWorks, PageLinks, SectionHeading, Tips, ToolHero, ToolJsonLd, ToolsShowcase } from "@/components/sections";
+import type { ClipPage } from "@/lib/clipTools";
 import { ClipTool } from "./ClipTool";
 
 export function ClipLanding({ page }: { page: ClipPage }) {
-  const [before, after] = page.h1.split(page.highlight);
   return (
     <>
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "WebApplication",
-          name: `${SITE.name} AI Clips`,
-          url: `${SITE.url}/${page.slug}`,
-          applicationCategory: "MultimediaApplication",
-          operatingSystem: "Any",
-          description: page.description,
-          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-        }}
-      />
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "HowTo",
-          name: page.h1,
-          step: page.howTo.map((text, i) => ({ "@type": "HowToStep", position: i + 1, text })),
-        }}
-      />
-      <JsonLd data={faqJsonLd(page.faqs)} />
-
-      <section className="relative overflow-hidden">
-        <div aria-hidden className="aurora pointer-events-none absolute inset-0" />
-        <div aria-hidden className="grid-dots pointer-events-none absolute inset-0 opacity-60" />
-        <div className="relative mx-auto max-w-6xl px-4 pb-8 pt-10 sm:px-6 sm:pt-16">
-          <div className="mx-auto max-w-3xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-line bg-elev/80 px-3 py-1 text-xs font-medium text-muted backdrop-blur">
-              <Wand2 className="size-3.5 text-accent" /> {SITE.name} AI Clips · Free · No watermark · No sign-up
-            </span>
-            <h1 className="mt-5 text-balance text-4xl font-semibold leading-[1.05] tracking-[-0.035em] sm:text-6xl">
-              {before}
-              {after !== undefined && <span className="font-display text-[1.08em] font-normal italic tracking-[-0.01em] text-accent">{page.highlight}</span>}
-              {after}
-            </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-pretty text-base text-muted sm:text-lg">{page.intro}</p>
-          </div>
-          <div className="mt-8">
-            <ClipTool preset={page.preset} />
-          </div>
-        </div>
-      </section>
+      <ToolJsonLd name="AI Clips" slug={page.slug} description={page.description} howTo={page.howTo} faqs={page.faqs} h1={page.h1} />
+      <ToolHero tool="clips" slug={page.slug} label={page.nav} h1={page.h1} highlight={page.highlight} intro={page.intro}>
+        <ClipTool preset={page.preset} />
+      </ToolHero>
 
       <HowItWorks steps={page.howTo} title="Long video to clips in three steps" />
       <Tips tips={page.tips} />
-      <Why />
+      <ClipWhy />
       <FaqSection faqs={page.faqs} title="AI Clips FAQ" />
-      <ToolLinks current={page.slug} />
+      <PageLinks tool="clips" current={page.slug} />
+      <ToolsShowcase exclude="clips" eyebrow="More tools" title="More free tools for your clips" />
+      <ClosingCta href="#tool" label="Find my viral clips" title="Your next viral Short is already inside your video." body="Drop it in. In a few minutes you have scored, captioned, vertical clips ready to post. Free, no sign-up." />
     </>
   );
 }
 
-function Why() {
+export function ClipWhy() {
   const items = [
     { icon: Gauge, title: "Virality score you can read", body: "Every clip is scored on hook, flow, value and shareability, with the reason in one line." },
     { icon: Scissors, title: "Cut on sentences", body: "Clips start and end on full sentences with a breath of room. Never mid-word." },
@@ -85,20 +46,6 @@ function Why() {
             <h3 className="mt-4 font-semibold tracking-tight">{it.title}</h3>
             <p className="mt-1 text-sm leading-relaxed text-muted">{it.body}</p>
           </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ToolLinks({ current }: { current: string }) {
-  return (
-    <section aria-label="More clip tools" className="mx-auto max-w-5xl px-4 pt-16 sm:px-6">
-      <div className="flex flex-wrap justify-center gap-2">
-        {CLIP_PAGES.filter((t) => t.slug !== current).map((t) => (
-          <Link key={t.slug} href={`/${t.slug}`} className="rounded-full border border-line bg-elev px-3.5 py-1.5 text-sm transition hover:border-line-strong">
-            {t.nav}
-          </Link>
         ))}
       </div>
     </section>
