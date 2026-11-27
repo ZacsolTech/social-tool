@@ -39,7 +39,7 @@ export type CJob = {
   language: string;
   detected_language: string | null;
   rtl: boolean;
-  source: { type: "upload" | "link" | "reframe"; url: string };
+  source: { type: "upload" | "link" | "reframe" | "clip"; url: string };
   info: MediaInfo | null;
   provider: string | null;
   hooks: string[];
@@ -87,7 +87,8 @@ export const DEFAULT_EXTRAS: Extras = {
 export type CSource =
   | { type: "upload"; id: string }
   | { type: "link"; token: string; index: number }
-  | { type: "reframe"; id: string; aspect: string };
+  | { type: "reframe"; id: string; aspect: string }
+  | { type: "clip"; id: string; clip: string };
 
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { cache: "no-store", ...init }).catch(() => {
@@ -237,7 +238,9 @@ export const CAPTIONS_BRAND_KEY = "klyprima:captions-brand";
 
 export type CaptionsHandoff =
   | { kind: "link"; token: string; index: number; title: string; thumbnail: string | null; duration: number | null; width: number | null; height: number | null }
-  | { kind: "reframe"; job: string; aspect: string; title: string; reuse: string | null };
+  | { kind: "reframe"; job: string; aspect: string; title: string; reuse: string | null }
+  /** One clip of an AI Clips project: its clean (uncaptioned) video and its words come along. */
+  | { kind: "clip"; job: string; clip: string; title: string; aspect: string };
 
 export function readLocal<T>(key: string): T | null {
   try {

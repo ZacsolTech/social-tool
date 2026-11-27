@@ -17,12 +17,15 @@ import {
   Subtitles,
   Video,
   VolumeX,
+  Wand2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { formatBytes, formatDuration, type Item, type Option, type Resolved } from "@/lib/api";
 import { CAPTIONS_HANDOFF_KEY, type CaptionsHandoff } from "@/lib/captions";
 import { CAPTIONS_SLUG } from "@/lib/captionTools";
+import { CLIPS_HANDOFF_KEY, type ClipsHandoff } from "@/lib/clips";
+import { CLIPS_SLUG } from "@/lib/clipTools";
 import { byId } from "@/lib/platforms";
 import { HANDOFF_KEY, type LinkHandoff, writeSession } from "@/lib/reframe";
 import { REFRAME_SLUG } from "@/lib/tools";
@@ -140,6 +143,13 @@ export function ResultCard({ data, onReset }: { data: Resolved; onReset: () => v
 function MakeVertical({ data, item }: { data: Resolved; item: Item }) {
   const router = useRouter();
   const portrait = item.width && item.height ? item.height > item.width : false;
+  // Long videos (podcasts, interviews, streams) are better cut into several clips than made vertical whole.
+  const long = (item.duration ?? 0) >= 120;
+  function clips() {
+    const handoff: ClipsHandoff = { token: data.token, index: item.index, title: item.title || data.title, thumbnail: item.thumbnail, duration: item.duration };
+    writeSession(CLIPS_HANDOFF_KEY, handoff);
+    router.push(`/${CLIPS_SLUG}?from=link`);
+  }
   function go() {
     const handoff: LinkHandoff = {
       token: data.token,
@@ -160,17 +170,37 @@ function MakeVertical({ data, item }: { data: Resolved; item: Item }) {
           <Crop className="size-4" />
         </span>
         <div className="text-sm">
-          <p className="font-medium">{portrait ? "Need 4:5 or square too?" : "Make it vertical for TikTok, Reels & Shorts"}</p>
-          <p className="text-muted">AI follows the speaker and picks a layout per shot. Free, no watermark.</p>
+          <p className="font-medium">
+            {long ? "Turn this video into viral Shorts" : portrait ? "Need 4:5 or square too?" : "Make it vertical for TikTok, Reels & Shorts"}
+          </p>
+          <p className="text-muted">
+            {long
+              ? "AI finds the best moments, cuts them on full sentences, frames the speaker and adds captions. Free, no watermark."
+              : "AI follows the speaker and picks a layout per shot. Free, no watermark."}
+          </p>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={go}
-        className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition hover:brightness-105"
-      >
-        <Sparkles className="size-4" /> Make it vertical
-      </button>
+      <div className="flex shrink-0 flex-wrap gap-2">
+        {long && (
+          <button
+            type="button"
+            onClick={clips}
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition hover:brightness-105"
+          >
+            <Wand2 className="size-4" /> Find viral clips
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={go}
+          className={clsx(
+            "inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition",
+            long ? "border border-line-strong hover:border-fg" : "bg-accent text-accent-fg hover:brightness-105",
+          )}
+        >
+          <Sparkles className="size-4" /> Make it vertical
+        </button>
+      </div>
     </div>
   );
 }

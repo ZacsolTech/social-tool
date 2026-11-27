@@ -92,6 +92,16 @@ class Settings(BaseSettings):
     captions_threads: int = 4                   # CPU threads for the local speech model
     captions_watermark: str = "klyprima.com"    # text of the optional credit on exported videos
 
+    # ---- AI Clips (long video -> short clips). See app/clips/. Uses the caption tool's speech-to-text and
+    # text AI keys, and Reframe's models.
+    clips_max_duration_sec: int = 90 * 60       # longest part of a video one project can search
+    clips_daily_per_ip: int = 10                # new videos per visitor per 24 h
+    clips_finds_per_day: int = 30               # "find again" with other settings per visitor per 24 h
+    clips_renders_per_hour: int = 80            # clip re-renders (editor) per visitor per hour
+    clips_workers: int = 1                      # videos worked on at the same time (CPU heavy)
+    clips_queue_max: int = 20
+    clips_active_per_ip: int = 1                # videos one visitor can have in progress at once
+
 
 @lru_cache
 def get_settings() -> Settings:

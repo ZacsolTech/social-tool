@@ -124,8 +124,9 @@ async def font_file(name: str):
 
 
 class SourceIn(BaseModel):
-    type: Literal["upload", "link", "reframe"]
+    type: Literal["upload", "link", "reframe", "clip"]     # clip: one clip of an AI Clips project
     id: str | None = Field(None, max_length=64)
+    clip: str | None = Field(None, max_length=16)
     token: str | None = Field(None, max_length=64)
     index: int = Field(0, ge=0, le=50)
     aspect: str | None = Field(None, max_length=8)
@@ -191,6 +192,20 @@ async def job_create(request: Request):
                 raise HTTPException(422, f"This video is longer than {s.captions_max_duration_sec // 60} minutes.")
             kw["title"] = body.title or item.title or r.title or "video"
         kw["source"].update(token=src.token, index=src.index)
+    elif src.type == "clip":
+        from ..clips import jobs as kjobs
+        try:
+            kj = kjobs.get(src.id or "")
+            kc = kjobs.clip(kj, src.clip or "")
+            if kj.ip != ip:
+                raise HTTPException(403, "That clip belongs to someone else.")
+            clip_path, clip_title, clip_words = kjobs.for_captions(kj, kc)
+        except kjobs.JobError as e:
+            raise HTTPException(e.status, e.message) from e
+        kw["title"] = body.title or clip_title
+        kw["source"].update(id=kj.id, clip=kc.id)
+        if body.subtitles is None:
+            reuse = clip_words
     else:
         try:
             rj = rjobs.get(src.id or "")
@@ -211,9 +226,10 @@ async def job_create(request: Request):
                "You've reached today's limit for AI captions. Please come back tomorrow.")
     kw.setdefault("title", body.title or "video")
     job = jobs.new_job(ip=ip, language=body.language, prompt=(body.prompt or "").strip() or None, **kw)
-    if src.type == "reframe":
-        dest = job.dir / f"source{out.path.suffix}"
-        rjobs.link_or_copy(out.path, dest)
+    copy_from = out.path if src.type == "reframe" else clip_path if src.type == "clip" else None
+    if copy_from is not None:
+        dest = job.dir / f"source{copy_from.suffix}"
+        rjobs.link_or_copy(copy_from, dest)
         job.src_path = dest
         try:
             job.info = probe(dest)

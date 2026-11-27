@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CAPTIONS_SLUG } from "@/lib/captionTools";
+import { CLIPS_SLUG } from "@/lib/clipTools";
 import { REFRAME_SLUG } from "@/lib/tools";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -8,7 +9,7 @@ const NAV = [
   { href: "/youtube-video-downloader", label: "YouTube" },
   { href: "/tiktok-video-downloader", label: "TikTok" },
   { href: "/instagram-reels-downloader", label: "Instagram" },
-  { href: "/facebook-video-downloader", label: "Facebook" },
+  { href: `/${CLIPS_SLUG}`, label: "AI Clips" },
   { href: `/${CAPTIONS_SLUG}`, label: "Captions" },
   { href: `/${REFRAME_SLUG}`, label: "Reframe 9:16" },
 ];
@@ -27,14 +28,20 @@ export function SiteHeader() {
         </nav>
         <div className="flex items-center gap-1">
           <Link
+            href={`/${CLIPS_SLUG}`}
+            className="whitespace-nowrap rounded-full bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition hover:brightness-95 md:hidden"
+          >
+            AI Clips
+          </Link>
+          <Link
             href={`/${CAPTIONS_SLUG}`}
-            className="rounded-full bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition hover:brightness-95 md:hidden"
+            className="whitespace-nowrap rounded-full px-2 py-1.5 text-sm font-medium text-muted transition hover:text-fg md:hidden"
           >
             Captions
           </Link>
           <Link
             href={`/${REFRAME_SLUG}`}
-            className="rounded-full px-2.5 py-1.5 text-sm font-medium text-muted transition hover:text-fg md:hidden"
+            className="hidden whitespace-nowrap rounded-full px-2 py-1.5 text-sm font-medium text-muted transition hover:text-fg min-[400px]:inline-block md:hidden"
           >
             9:16
           </Link>

@@ -1,4 +1,4 @@
-"""Klyprima API: social video downloader, Reframe (landscape -> portrait) and Captions tools."""
+"""Klyprima API: social video downloader, Reframe (landscape -> portrait), Captions and AI Clips tools."""
 
 from __future__ import annotations
 
@@ -27,6 +27,8 @@ from .extractor import Option, Resolved, ResolveError, resolve, safe_filename
 from . import jobs, vmux
 from .captions import api as captions_api
 from .captions import jobs as captions_jobs
+from .clips import api as clips_api
+from .clips import jobs as clips_jobs
 from .reframe import api as reframe_api
 from .reframe import jobs as reframe_jobs
 from .reframe import uploads as reframe_uploads
@@ -44,6 +46,7 @@ async def _janitor() -> None:
         await asyncio.to_thread(jobs.prune, settings.info_ttl_sec)
         await asyncio.to_thread(reframe_jobs.prune, settings.reframe_ttl_sec)
         await asyncio.to_thread(captions_jobs.prune, settings.reframe_ttl_sec)
+        await asyncio.to_thread(clips_jobs.prune, settings.reframe_ttl_sec)
         await asyncio.to_thread(reframe_uploads.prune, settings.reframe_ttl_sec)
 
 
@@ -76,11 +79,12 @@ app = FastAPI(title="Klyprima API", version="0.4.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "HEAD"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"],
     allow_headers=["*"],
 )
 app.include_router(reframe_api.router)
 app.include_router(captions_api.router)
+app.include_router(clips_api.router)
 
 
 # ---------------------------------------------------------------- helpers
@@ -172,7 +176,8 @@ class ResolveIn(BaseModel):
 @app.get("/api/health")
 async def health() -> dict[str, Any]:
     return {"ok": True, "cached": len(cache), "reframe_jobs": len(reframe_jobs._jobs), "reframe_waiting": len(reframe_jobs._waiting),
-            "captions_jobs": len(captions_jobs._jobs), "captions_waiting": len(captions_jobs._waiting)}
+            "captions_jobs": len(captions_jobs._jobs), "captions_waiting": len(captions_jobs._waiting),
+            "clips_jobs": len(clips_jobs._jobs), "clips_waiting": len(clips_jobs._waiting)}
 
 
 @app.get("/api/platforms")
